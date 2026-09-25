@@ -206,17 +206,15 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         state.tabs = state.tabs.map((t) => (t.key === key ? { ...t, title } : t));
       }
 
-      function choosePlan(agent: Agent, task: Task, instruction: string): RunStep[] {
-        const version = agent.versions.find((v) => v.id === task.agentVersionId);
+      function choosePlan(agent: Agent, pinnedAgentVersionId: string, isFirstRun: boolean, instruction: string): RunStep[] {
+        const version = agent.versions.find((v) => v.id === pinnedAgentVersionId);
         const toolNames = version?.manifest.tools.map((t) => t.name) ?? [];
         const hasHighRiskMcp = toolNames.some((name) => {
           const tool = get().tools.find((tl) => tl.name === name);
           return tool?.provider === "MCP" && tool.riskLevel === ("HIGH" satisfies ToolRiskLevel);
         });
         if (hasHighRiskMcp) {
-          return task.runs.length === 0
-            ? buildFirstRunPlan(agent.name, instruction)
-            : buildFollowupRunPlan(instruction);
+          return isFirstRun ? buildFirstRunPlan(agent.name, instruction) : buildFollowupRunPlan(instruction);
         }
         return buildGenericRunPlan(agent.name, instruction);
       }
@@ -605,6 +603,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           const agent = s0.agents[task.agentId];
           if (!agent) return "invalid";
           const at = nowIso();
+          const isFirstRun = task.runs.length === 0; // 新指令 → 新 Run；首条指令是 Run #1
 
           const runId = nid("run");
           const run: Run = {
@@ -638,7 +637,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             t.runs.push(run);
           });
 
-          const plan = choosePlan(agent, { ...task, runs: [...task.runs, run] }, instruction);
+          const plan = choosePlan(agent, task.agentVersionId, isFirstRun, instruction);
           new RunSimulator(taskId, runId, plan).start();
           return "started";
         },

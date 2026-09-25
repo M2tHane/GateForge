@@ -1,7 +1,12 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { Suspense } from "react";
+import { NewTaskComposer } from "@/features/task/NewTaskComposer";
 
-export default function NewTaskComposer() {
-  return <PagePlaceholder title="NewTaskComposer" hint="New Task Composer（选择 Agent 后发送创建 Task）" />;
+export default function TaskNewPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewTaskComposer />
+    </Suspense>
+  );
 }

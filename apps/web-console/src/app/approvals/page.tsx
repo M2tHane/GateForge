@@ -1,7 +1,7 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { MyApprovalsPage } from "@/features/approvals/MyApprovalsPage";
 
-export default function MyApprovalsPage() {
-  return <PagePlaceholder title="MyApprovalsPage" hint="My Approvals — 聚合我的待审批" />;
+export default function ApprovalsPage() {
+  return <MyApprovalsPage />;
 }

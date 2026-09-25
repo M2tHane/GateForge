@@ -47,6 +47,8 @@ export interface RunStep {
   endStatus?: "COMPLETED" | "FAILED";
   /** 审批通过后真正执行挂起中的 ToolCall（不新建重复 tool call） */
   completesPendingTool?: boolean;
+  /** Run 结束时写入的 usage */
+  usage?: { inputTokens: number; outputTokens: number; costUsd: number };
 }
 
 function tv(toolName: string): string {
@@ -124,6 +126,8 @@ export function buildFirstRunPlan(_agentName: string, instruction: string): RunS
     {
       delay: 900, type: "assistant", title: "Agent 输出说明",
       assistantText: "✅ 登录超时修复完成：\n- `LoginService.java` 连接池超时 504 → 30s\n- 回归测试 12/12 通过\n- 已推送 `feat/login-timeout`（commit 9f31c2a），可以在 GitHub 上发起 PR。",
+      endStatus: "COMPLETED",
+      usage: { inputTokens: 5800, outputTokens: 2100, costUsd: 0.116 },
     },
   ];
 }
@@ -155,6 +159,8 @@ export function buildFollowupRunPlan(instruction: string): RunStep[] {
     {
       delay: 800, type: "assistant", title: "Agent 输出说明",
       assistantText: "✅ 已补齐边界用例（连接池抖动、超时恢复、重试幂等三类，共 +3 个用例），15/15 全部通过。本轮改动仅限测试代码，无需推送审批；如需我推送到远端请再说明。",
+      endStatus: "COMPLETED",
+      usage: { inputTokens: 3200, outputTokens: 1200, costUsd: 0.062 },
     },
   ];
 }
@@ -168,7 +174,12 @@ export function buildGenericRunPlan(agentName: string, instruction: string): Run
       title: "builtin.read 收集上下文",
       tool: { name: "builtin.read", versionId: tv("builtin.read"), provider: "BUILTIN", argsDigest: 'file="README.md"', decision: "ALLOW", riskLevel: LOW, resultDigest: "128 lines" },
     },
-    { delay: 900, type: "assistant", title: "Agent 输出说明", assistantText: `我已按指令整理了执行结果。当前为 Stage 01 Mock 演示：${agentName} 使用固定 Published Version 处理该任务，无高风险动作需要审批。` },
+    {
+      delay: 900, type: "assistant", title: "Agent 输出说明",
+      assistantText: `我已按指令整理了执行结果。当前为 Stage 01 Mock 演示：${agentName} 使用固定 Published Version 处理该任务，无高风险动作需要审批。`,
+      endStatus: "COMPLETED",
+      usage: { inputTokens: 1800, outputTokens: 700, costUsd: 0.03 },
+    },
   ];
 }
 
@@ -178,6 +189,8 @@ export function buildRejectedTail(instruction: string): RunStep[] {
     {
       delay: 900, type: "assistant", title: "Agent 输出说明",
       assistantText: `⚠️ github.push 已被你拒绝，本次 Run 不会推送任何改动。本地修复（LoginService.java + 测试）仍保留在工作区，你可以稍后在 Inspector 中重新发起推送，或先评审改动内容。\n\n指令「${instruction.slice(0, 24)}」的其余步骤已全部完成。`,
+      endStatus: "COMPLETED",
+      usage: { inputTokens: 5200, outputTokens: 1800, costUsd: 0.1 },
     },
   ];
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { SettingsPage } from "@/features/settings/SettingsPage";
 
-export default function SettingsPage() {
-  return <PagePlaceholder title="SettingsPage" hint="Settings" />;
+export default function SettingsRoutePage() {
+  return <SettingsPage />;
 }
