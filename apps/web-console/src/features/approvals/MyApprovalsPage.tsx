@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Check, ShieldCheck, X } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge, Button, EmptyState } from "@/components/ui/primitives";
@@ -13,8 +12,10 @@ import type { ApprovalRequest } from "@/lib/types";
 
 /** My Approvals（§15）：聚合与当前用户 Task 相关的待审批。 */
 export function MyApprovalsPage() {
-  const approvals = useWorkspaceStore((s) => s.approvals);
-  const decide = useWorkspaceStore((s) => s.decideApproval);
+  // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
+  const store = useWorkspaceStore();
+  const approvals = store.approvals;
+  const decide = store.decideApproval;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [statusFilter, setStatusFilter] = useState<"PENDING" | "ALL">("PENDING");

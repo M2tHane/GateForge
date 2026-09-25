@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Bot, Info } from "lucide-react";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { MessageList } from "@/components/chat/MessageList";
 import { Avatar, Badge } from "@/components/ui/primitives";
 import { Dropdown, DropdownItem } from "@/components/ui/overlay";
 import { COMPOSER_TAB_KEY, useWorkspaceStore } from "@/lib/store/workspace-store";
@@ -16,13 +15,13 @@ import { COMPOSER_TAB_KEY, useWorkspaceStore } from "@/lib/store/workspace-store
  */
 export function NewTaskComposer() {
   const router = useRouter();
-  const params = useParams<{ agent?: string }>();
   const searchParams = useSearchParams();
 
-  const agents = useWorkspaceStore((s) => s.agents);
-  const composerAgentId = useWorkspaceStore((s) => s.composerAgentId);
-  const tabUi = useWorkspaceStore((s) => s.tabUi);
-  const composerTabExists = useWorkspaceStore((s) => s.tabs.some((t) => t.key === COMPOSER_TAB_KEY));
+  // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
+  const store = useWorkspaceStore();
+  const agents = store.agents;
+  const composerAgentId = store.composerAgentId;
+  const tabUi = store.tabUi;
 
   const [error, setError] = useState<string | null>(null);
   const draft = tabUi[COMPOSER_TAB_KEY]?.draft ?? "";
@@ -30,7 +29,8 @@ export function NewTaskComposer() {
   // 深链 /agents 卡片「启动任务」带 ?agent=；否则仅确保 Tab 存在（不覆盖已选 Agent）
   useEffect(() => {
     const agentParam = searchParams.get("agent") ?? undefined;
-    useWorkspaceStore.getState().openComposerTab(agentParam ?? null);
+    // 无 ?agent 参数时传 undefined：仅确保 Tab 存在，不清空已选 Agent
+    useWorkspaceStore.getState().openComposerTab(agentParam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

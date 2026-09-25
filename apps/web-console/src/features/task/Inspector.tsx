@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -35,12 +35,15 @@ export function Inspector({
   collapsed: boolean;
   onToggle: () => void;
 }) {
-  const task = useWorkspaceStore((s) => s.tasks[taskId]);
-  const approvals = useWorkspaceStore((s) => s.approvals);
+  // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
+  const store = useWorkspaceStore();
+  const task = store.tasks[taskId];
+  const approvals = store.approvals;
   const [tab, setTab] = useState("run");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
-  const runs = useMemo(() => [...(task?.runs ?? [])].reverse(), [task?.runs]);
+  // 注意：runs 在 mock 中原地 push，不能依赖 useMemo 缓存（引用不变）
+  const runs = [...(task?.runs ?? [])].reverse();
   const currentRun = task ? currentRunOf(task) : undefined;
   const selectedRun: Run | undefined =
     runs.find((r) => r.id === selectedRunId) ?? currentRun ?? runs[0];
@@ -245,9 +248,10 @@ function TraceTab({ run }: { run?: Run }) {
 }
 
 function ApprovalTab({ taskId }: { taskId: string }) {
-  const approvals = useWorkspaceStore((s) => s.approvals);
-  const decide = useWorkspaceStore((s) => s.decideApproval);
-  const task = useWorkspaceStore((s) => s.tasks[taskId]);
+  const store = useWorkspaceStore();
+  const approvals = store.approvals;
+  const decide = store.decideApproval;
+  const task = store.tasks[taskId];
   const [comment, setComment] = useState("");
   const taskApprovals = Object.values(approvals)
     .filter((a) => a.taskId === taskId)

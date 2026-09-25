@@ -8,9 +8,11 @@ import { Avatar } from "@/components/ui/primitives";
 /** Employee Workspace 首屏：第一眼是「新建会话 / 新建任务」（设计原则 §2.1）。 */
 export default function HomePage() {
   const nav = useWorkspaceNav();
-  const tasks = useWorkspaceStore((s) => s.tasks);
-  const agents = useWorkspaceStore((s) => s.agents);
-  const conversations = useWorkspaceStore((s) => s.conversations);
+  // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
+  const store = useWorkspaceStore();
+  const tasks = store.tasks;
+  const agents = store.agents;
+  const conversations = store.conversations;
 
   const recentTasks = Object.values(tasks)
     .filter((t) => t.persisted)

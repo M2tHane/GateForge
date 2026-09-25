@@ -17,7 +17,7 @@ export function useWorkspaceNav() {
       router.push(`/conversation/${id}`);
     },
     newTask(agentId?: string) {
-      useWorkspaceStore.getState().openComposerTab(agentId ?? null);
+      useWorkspaceStore.getState().openComposerTab(agentId);
       router.push("/task/new");
     },
     openConversation(convId: string) {

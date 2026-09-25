@@ -11,8 +11,10 @@
  * - New user instruction → New Run; Approval resume → SAME Run (P2)
  * - Approve applies to the exact requested action only (G6)
  *
- * Rendering contract: components subscribe with `useWorkspaceStore()` (no
- * narrow selector) because mock mutations update nested state in place.
+ * Rendering contract (MANDATORY): components must subscribe with
+ * `useWorkspaceStore()` (full-store). Mock mutations update nested state in
+ * place, so narrow selectors (`(s) => s.slice`) see unchanged references and
+ * will silently miss updates.
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -334,6 +336,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           if (step.endStatus && run.status === "RUNNING") {
             run.status = step.endStatus;
             run.finishedAt = at;
+            if (step.usage) run.usage = step.usage;
             run.events.push({
               id: nid("evt"), runId, type: "state",
               title: `Run #${run.index} ${step.endStatus === "COMPLETED" ? "完成（RUNNING → COMPLETED）" : "失败"}`,
@@ -436,7 +439,9 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         openComposerTab: (agentId) => {
           mutate((s) => {
             ensureTab(s, "composer", "", "新建任务");
-            s.composerAgentId = agentId ?? null;
+            // undefined=仅确保 Tab（保留已选 Agent，防止 Tab 往返丢失选择）
+            // null=清空选择；string=预选 Agent
+            if (agentId !== undefined) s.composerAgentId = agentId;
           });
           return COMPOSER_TAB_KEY;
         },

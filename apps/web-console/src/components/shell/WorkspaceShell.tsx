@@ -12,8 +12,14 @@ import { useWorkspaceStore } from "@/lib/store/workspace-store";
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   // 等待 persist rehydrate 完成，避免 SSR/CSR 首帧不一致
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const hasHydrated = useWorkspaceStore.persist?.hasHydrated?.() ?? mounted;
+  const [hydrationTick, setHydrationTick] = useState(0);
+  useEffect(() => {
+    setMounted(true);
+    // persist 若为异步完成，需要在水合结束时再渲染一次
+    const unsub = useWorkspaceStore.persist?.onFinishHydration?.(() => setHydrationTick((t) => t + 1));
+    return () => unsub?.();
+  }, []);
+  const hasHydrated = (useWorkspaceStore.persist?.hasHydrated?.() ?? true) || hydrationTick > 0;
 
   if (!mounted || !hasHydrated) {
     return (

@@ -18,9 +18,11 @@ export function TaskWorkspace() {
   const params = useParams<{ id: string }>();
   const taskId = params.id;
 
-  const task = useWorkspaceStore((s) => s.tasks[taskId]);
-  const agent = useWorkspaceStore((s) => (task ? s.agents[task.agentId] : undefined));
-  const tabUi = useWorkspaceStore((s) => s.tabUi);
+  // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
+  const store = useWorkspaceStore();
+  const task = store.tasks[taskId];
+  const agent = task ? store.agents[task.agentId] : undefined;
+  const tabUi = store.tabUi;
 
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [busyHint, setBusyHint] = useState(false);
@@ -58,7 +60,6 @@ export function TaskWorkspace() {
     }
   }
 
-  const isBusy = currentRun ? currentRun.status === "RUNNING" || currentRun.status === "WAITING_APPROVAL" : false;
   const runStatus = currentRun?.status;
 
   return (

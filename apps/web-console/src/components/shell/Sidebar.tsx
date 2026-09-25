@@ -39,14 +39,16 @@ const ADMIN_NAV = [
 ];
 
 export function Sidebar() {
-  const conversations = useWorkspaceStore((s) => s.conversations);
-  const tasks = useWorkspaceStore((s) => s.tasks);
-  const agents = useWorkspaceStore((s) => s.agents);
-  const approvals = useWorkspaceStore((s) => s.approvals);
-  const viewAsAdmin = useWorkspaceStore((s) => s.viewAsAdmin);
-  const currentUser = useWorkspaceStore((s) => s.currentUser);
-  const setViewAsAdmin = useWorkspaceStore((s) => s.setViewAsAdmin);
-  const activeTabKey = useWorkspaceStore((s) => s.activeTabKey);
+  // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
+  const store = useWorkspaceStore();
+  const conversations = store.conversations;
+  const tasks = store.tasks;
+  const agents = store.agents;
+  const approvals = store.approvals;
+  const viewAsAdmin = store.viewAsAdmin;
+  const currentUser = store.currentUser;
+  const setViewAsAdmin = store.setViewAsAdmin;
+  const activeTabKey = store.activeTabKey;
   const nav = useWorkspaceNav();
 
   const pendingApprovalCount = useMemo(
