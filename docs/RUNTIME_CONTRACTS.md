@@ -94,7 +94,7 @@ PAUSED → CANCELLED
 Task ≠ Run
 ```
 
-- Task 创建时固定 `agentId` + `agentVersionId`（exact Published AgentVersion）；Task 生命周期内不自动跟随 Agent 后续新 Version，升级必须显式操作（MVP 不做自动升级）。
+- Task 创建时固定 `agentId` + `agentVersionId`（exact Published AgentVersion）；Task 创建后两者不可通过普通 API 修改（消息 API 不接受，见 API_CONTRACTS.md §5）；Task 生命周期内不自动跟随 Agent 后续新 Version，升级必须显式操作（MVP 不做自动升级）。
 - **New user instruction → New Run**：Task 中每条新的用户指令创建一个新 Run（共享 Task 上下文与固定 AgentVersion）。
 - **Approval / Pause Resume → Same Run**：Run 进入 WAITING_APPROVAL / PAUSED 后，批准或恢复继续**同一个 Run**，不新建 Run。
 - MVP 固定：1 Task → 1 Agent → 1 exact Published AgentVersion → 1 AgentEngine；Multi-Agent 留到后续 Stage。

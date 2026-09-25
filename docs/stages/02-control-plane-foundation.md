@@ -24,7 +24,7 @@
 - Draft Agent Version（携带 Agent Version Manifest：engine / modelPolicy / skills（exact SkillVersion）/ tools（exact ToolVersion），见 docs/AGENT_CAPABILITY_MODEL.md §7）。
 - Publish Version，发布后不可变；AgentSkillBinding 冻结 exact SkillVersion。
 - Agent enable / disable（status = ENABLED | DISABLED）。
-- Skill CRUD / Skill Category（仅 Platform Admin）/ Skill Version Publish / Skill Clone（Snapshot Copy，记录 sourceSkillVersionId）/ Skill Enablement（user_skill_enablement）。
+- Skill CRUD / Skill Category（仅 Workspace Admin）/ Skill Version Publish / Skill Clone（Snapshot Copy，记录 sourceSkillVersionId）/ Skill Enablement（user_skill_enablement）。
 - Active Version、Rollback。
 - Audit append-only。
 - Postgres migration（含 team / team_member / skill / skill_version / skill_category / agent_skill_binding / user_skill_enablement / agent / agent_version 调整）。

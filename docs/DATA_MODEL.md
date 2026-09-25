@@ -72,12 +72,12 @@ erDiagram
 - workspace_id
 - team_id
 - user_id
-- role（TEAM_ADMIN | MEMBER；TEAM_ADMIN = Team Admin / Team Builder）
+- role（TEAM_ADMIN | TEAM_BUILDER | MEMBER）
 - created_at
 
 唯一约束：`(team_id, user_id)`。
 
-> Identity 侧的 user / membership / rolebinding（Workspace 级 PLATFORM_ADMIN / AUDITOR / EMPLOYEE）沿用 identity Domain 设计，此处不重复展开。
+> Identity 侧的 user / membership / rolebinding（Workspace 级 WORKSPACE_ADMIN / AUDITOR / OPERATOR / EMPLOYEE）沿用 identity Domain 设计，此处不重复展开。
 
 ### agent
 - id
@@ -95,7 +95,7 @@ erDiagram
 
 约束：
 - `kind = PERSONAL` → `scope = PERSONAL` 且 `owner_user_id NOT NULL`。
-- `kind = TEMPLATE AND scope = WORKSPACE` → `team_id` 为空（Workspace Template，Platform Admin 管理）。
+- `kind = TEMPLATE AND scope = WORKSPACE` → `team_id` 为空（Workspace Template，Workspace Admin 管理）。
 - `kind = TEMPLATE AND scope = TEAM` → `team_id NOT NULL`（Team Template）。
 
 ### agent_version
@@ -140,7 +140,7 @@ erDiagram
 - status
 - created_at
 
-唯一约束：`(workspace_id, name)`。由 Platform Admin 创建；普通用户不能创建 Category。
+唯一约束：`(workspace_id, name)`。由 Workspace Admin 创建；普通用户不能创建 Category。
 
 ### skill
 - id
@@ -273,7 +273,7 @@ Conversation 属于 Data Plane user-work 执行状态；不绑定 Agent，不产
 - workspace_id
 - owner_user_id
 - agent_id（MVP：创建时固定 1 个 Personal Agent）
-- agent_version_id（NOT NULL，创建时固定的 exact Published AgentVersion；不自动跟随新版本）
+- agent_version_id（NOT NULL，创建时固定的 exact Published AgentVersion；创建后不可变，不自动跟随新版本，不可通过消息 API 修改——见 API_CONTRACTS.md §5）
 - title
 - summary
 - status（ACTIVE | ARCHIVED；产品生命周期，不复制 Run 状态机，无 TASK_RUNNING / TASK_WAITING_APPROVAL）

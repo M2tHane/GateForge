@@ -1,6 +1,6 @@
 # GateForge — Agent Platform Specification
 
-v1.2 User Workspace & Resource Model Freeze（在 v1.1.1 执行与安全架构冻结基线上收口）。这是一套用于分阶段开发企业级 Agent 平台的约束性文档包。目标不是一次性实现完整平台，而是让产品、前端、Control Plane、Agent Runtime、Gateway 和数据模型在同一套契约下演进，避免开发过程中不断改方向。
+v1.2.1 User Workspace Semantic Freeze（在 v1.2 User Workspace & Resource Model Freeze 与 v1.1.1 执行与安全架构冻结基线上，收口 Multi-Team 授权语义、Task Agent 不可变与 Workspace Admin 角色命名）。这是一套用于分阶段开发企业级 Agent 平台的约束性文档包。目标不是一次性实现完整平台，而是让产品、前端、Control Plane、Agent Runtime、Gateway 和数据模型在同一套契约下演进，避免开发过程中不断改方向。
 
 ## 产品定位
 
@@ -48,9 +48,11 @@ Runtime / Gateway / Policy 决定 Agent “实际能不能做”
 关键语义速览（唯一定义见 `docs/USER_AND_RESOURCE_MODEL.md`）：
 
 - Workspace = 企业级隔离边界；Workspace → Teams → Users；Scope = WORKSPACE / TEAM / PERSONAL。
-- Effective Capability = Workspace Policy ∩ Team Policy ∩ User Permission ∩ Agent Configuration；下层只能缩小。
+- Effective Capability 按 `Workspace Boundary ∩ User Permission ∩ Agent Configuration ∩ Applicable Team Grants` 解析；Team 是“资源来源 + 授权域”，Team Resource 按来源 Team 独立校验，Workspace Policy 始终是最高上限；下层只能缩小。
+- 企业内部管理员角色 = Workspace Admin（WORKSPACE_ADMIN）；v1 无 GateForge 平台级超级管理员。
 - Agent ≠ Agent Template：员工使用 Personal Agent；Template Clone 是 Snapshot Copy。
 - Agent.status = ENABLED / DISABLED；执行状态（RUNNING / WAITING_APPROVAL…）只属于 Run。
+- Task 创建后固定 `agentId` + exact `agentVersionId`，不可切换 Agent / AgentVersion；前端区分 New Task Composer 与 Existing Task Workspace。
 - Skill 是一级资源但永远没有执行权限；Agent Version 冻结 exact SkillVersion 与 exact ToolVersion。
 - Conversation ≠ Task ≠ Run；新指令 → 新 Run；Approval Resume → 同一个 Run；MVP Task = Single Agent。
 

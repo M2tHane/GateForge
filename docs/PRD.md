@@ -1,7 +1,7 @@
 # PRD — GateForge：企业 AI 工作空间 + Agent Control Plane
 
-**版本**：v1.2
-**状态**：v1.2 User Workspace & Resource Model Freeze（在 v1.1.1 执行与安全架构冻结基线上补齐 Workspace / 资源模型）
+**版本**：v1.2.1
+**状态**：v1.2.1 User Workspace Semantic Freeze（在 v1.2 User Workspace & Resource Model Freeze 与 v1.1.1 执行与安全架构冻结基线上，收口 Multi-Team 授权语义、Task Agent 不可变与 Workspace Admin 角色命名）
 **产品定位**：企业级 AI 工作空间与 Agent 治理平台
 
 ## 1. 产品定位与两条体验
@@ -35,16 +35,16 @@ GateForge
 ### Employee（主体用户）
 普通员工。使用 Conversation、Task、Personal Agent、Skill 完成日常工作；可创建 Personal Agent / Personal Skill，可从 Workspace / Team 模板 Clone。不能添加 Provider Secret、私自连接 MCP Server、创建 Skill Category 或提升权限。
 
-### Platform Admin
-控制 Workspace、Teams / Members、Approved Models、Model Policies、Tool Registry、MCP Servers、High-risk Tool Policy、Global Policy、Budget、Skill Categories、Workspace Agent Templates、Workspace Skills。
+### Workspace Admin（WORKSPACE_ADMIN）
+企业（Workspace）级管理员，当前企业治理的最高业务角色。控制 Workspace Settings、Teams / Members、Approved Models、Model Policies、Tool Registry、MCP Servers、High-risk Tool Policy、Global Policy、Budget、Skill Categories、Workspace Agent Templates、Workspace Skills。
 
-### Team Admin / Team Builder
-控制 Team Agent Templates、Team Skills、Team 成员允许的能力范围与 Team 范围配置。
+### Team Admin（TEAM_ADMIN）/ Team Builder（TEAM_BUILDER）
+Team Admin 控制 Team Members、Team Resources（Team Agent Template / Team Skill）、Team Policy 与 Team 范围配置。Team Builder 可以创建 / 维护 Team Agent Template 与 Team Skill，但不必拥有 Team Member 管理权限。
 
-### Auditor / Operator
-查看运行 Trace、Tool Calls、Policy Decision、Approval、Token、Cost、Failure 和 Release 历史。
+### Auditor（AUDITOR）/ Operator（OPERATOR）
+Auditor 只读审计：查看运行 Trace、Tool Calls、Policy Decision、Approval、Token、Cost、Failure 和 Release 历史。Operator 拥有运行 / 运维相关受控权限。
 
-角色模型、Resource Scope（WORKSPACE / TEAM / PERSONAL）与 Effective Capability 的唯一定义见 docs/USER_AND_RESOURCE_MODEL.md。
+角色模型、Resource Scope（WORKSPACE / TEAM / PERSONAL）与 Effective Capability 的唯一定义见 docs/USER_AND_RESOURCE_MODEL.md。企业内部管理员统一命名为 Workspace Admin（稳定枚举 `WORKSPACE_ADMIN`，不再使用 Platform Admin / `PLATFORM_ADMIN`）；v1 不实现 GateForge 平台级超级管理员体系（单个 GateForge 部署承载多个 Workspace，WORKSPACE_ADMIN 即当前最高业务角色；未来如需部署层管理另做设计）。
 
 ## 3. MVP 用户闭环
 
@@ -91,7 +91,7 @@ Audit / Trace / Cost 可追踪
 ### 4.1 Workspace / Team / User
 - Workspace 是企业级隔离边界；Team 隶属 Workspace；User 可属于多个 Team。
 - 资源 Scope 统一为 WORKSPACE / TEAM / PERSONAL（UI：平台 / 团队 / 我的）。
-- Effective Capability = Workspace Policy ∩ Team Policy ∩ User Permission ∩ Agent Configuration；下层只能缩小能力。
+- Effective Capability 不做全局四集合交集：按 `Workspace Boundary ∩ User Permission ∩ Agent Configuration ∩ Applicable Team Grants` 解析；Team 是“资源来源 + 授权域”，每个 Team Scope Resource 按其来源 Team 独立校验 Membership + Team Policy；Workspace Policy 始终是最高边界；下层只能缩小能力。
 
 ### 4.2 Agent Registry（Personal Agent + Template）
 - Agent 分 `kind = PERSONAL | TEMPLATE`；Personal Agent `scope = PERSONAL` 且 ownerUserId 必填；Workspace / Team Template `kind = TEMPLATE`。
@@ -102,7 +102,7 @@ Audit / Trace / Cost 可追踪
 
 ### 4.3 Skill Registry（一级资源）
 - Skill / SkillVersion / SkillCategory 为正式资源；Skill 具备 Scope、Category、Ownership、Version、Clone 来源、Enablement。
-- Skill 必须属于 exactly one Category；Category 由 Platform Admin 创建。
+- Skill 必须属于 exactly one Category；Category 由 Workspace Admin 创建。
 - Agent Version 通过 AgentSkillBinding 冻结 exact SkillVersion（与 ToolVersion 同构）；Skill 本身没有执行权限。
 - 员工可 Enable / Disable 可访问 Skill，可 Clone Workspace / Team Skill 为 Personal Skill（Snapshot Copy）。
 
@@ -113,6 +113,8 @@ Audit / Trace / Cost 可追踪
 
 ### 4.5 Task（Agent 工作会话）
 - 正式产品对象：Task ≠ Run。Task 固定 1 Agent + 1 exact Published AgentVersion；不自动跟随新 Version。
+- Task 创建后 `agentId` / `agentVersionId` 不可变：消息 API 不接受这两个字段，MVP 不提供切换 Agent / 升级 Agent Version 的能力。
+- 前端区分 **New Task Composer**（创建前，可选择 Agent）与 **Existing Task Workspace**（创建后，只读展示固定 Agent + Pinned Version）；详细见 frontend/DESIGN.md §7。
 - Task.status 只表达产品生命周期（ACTIVE / ARCHIVED）；执行状态从 Current Run 派生。
 - 执行规则：新指令 → 新 Run；Approval / Pause Resume → 同一个 Run。
 - MVP：1 Task = 1 Agent（不支持 Agent Team / Supervisor / Multi-Agent）。
@@ -163,7 +165,7 @@ Audit / Trace / Cost 可追踪
 Employee Workspace（普通员工默认视图）：
 
 1. 新建会话 / Conversation Workspace（多轮聊天、Model Selector、/skill Picker）
-2. 新建任务 / Task Workspace（Agent Selector、多轮工作会话、Inspector）
+2. 新建任务（New Task Composer：选择 Agent）/ Task Workspace（只读固定 Agent + Pinned Version、多轮工作会话、Inspector）
 3. Agents（Personal Agent Card Grid）
 4. Agent Detail（概览 / 版本 / Skills / Tools / 历史任务 / 设置）
 5. Create Agent（模板选择 + Agent Editor）
@@ -221,7 +223,7 @@ Conversation 是普通对话；Task 是用户视角的长期 Agent 工作会话�
 Agent Version 通过 AgentSkillBinding 冻结 exact SkillVersion（`name` 仅展示，`skillVersionId` 才是绑定依据）；Conversation /skill 导入同样绑定 exact SkillVersion。Skill 永远没有执行权限。
 
 ### Rule 12 — Effective Capability 只能缩小
-Workspace / Team / User / Agent Configuration 四层取交集；下层只能缩小能力，不能扩大能力。
+Effective Capability 按 `Workspace Boundary ∩ User Permission ∩ Agent Configuration ∩ Applicable Team Grants` 解析：Team Grant 按资源来源 Team 独立校验（Team Membership + Team Policy + Workspace Policy），不得把用户所属所有 Team Policy 全局求交集；Workspace Policy 是最高边界，任何 Team / User / Agent 都不能扩大它。
 
 ## 7. 非目标
 

@@ -63,9 +63,9 @@ Subject 类型：
 - AGENT
 - SERVICE
 
-角色（详细职责见 USER_AND_RESOURCE_MODEL.md §3）：
-- RoleBinding（Workspace 级）：PLATFORM_ADMIN / AUDITOR / EMPLOYEE
-- TeamMember.role：TEAM_ADMIN（Team Admin / Team Builder）/ MEMBER
+角色（详细职责见 USER_AND_RESOURCE_MODEL.md §3；企业级管理员统一命名 Workspace Admin，不再使用 PLATFORM_ADMIN）：
+- RoleBinding（Workspace 级）：WORKSPACE_ADMIN / AUDITOR / OPERATOR / EMPLOYEE
+- TeamMember.role：TEAM_ADMIN / TEAM_BUILDER / MEMBER
 
 重要：Agent Prompt 声称的身份不属于 Identity 输入。Subject 由服务端上下文注入。
 
@@ -248,7 +248,7 @@ SkillVersion
 ```
 
 规则：
-- SkillCategory 由 Platform Admin 创建；普通用户不能创建 Category。Scope 与 Category 是正交维度。
+- SkillCategory 由 Workspace Admin 创建；普通用户不能创建 Category。Scope 与 Category 是正交维度。
 - Skill 只能属于一个 Category；Category 不改变 Scope。
 - Published SkillVersion immutable；Skill 更新 → 新 SkillVersion → Publish。
 - AgentSkillBinding 绑定 exact SkillVersion：Workspace / Team Skill 更新不会改变已 Published 的 AgentVersion、Personal Skill Clone 或已绑定的 Conversation。

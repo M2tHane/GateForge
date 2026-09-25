@@ -70,7 +70,7 @@ GET  /api/agents/{agentId}/releases
 ### Task
 
 ```text
-POST /api/tasks                    # 创建 Task：固定 agentId + agentVersionId（exact Published AgentVersion）
+POST /api/tasks                    # 创建 Task：固定 agentId + exact agentVersionId（创建时的 Published AgentVersion）
 GET  /api/tasks
 GET  /api/tasks/{id}
 
@@ -79,7 +79,12 @@ GET  /api/tasks/{id}/runs          # Task 的 Run 列表
 POST /api/tasks/{id}:archive       # Task.status → ARCHIVED
 ```
 
-Task 创建 / 消息请求不接受 `agentVersionId` 变更；Task 生命周期内固定创建时的 Published Version（升级必须显式操作，MVP 不做自动升级）。
+Task Agent 不可变（v1.2.1 冻结，见 DEVELOPMENT_GUARDRAILS P17）：
+
+- `POST /api/tasks` 负责创建 Task 并固定 `agentId` + exact `agentVersionId`（创建时该 Agent 的 Published AgentVersion）。
+- `POST /api/tasks/{id}/messages` **不接受** `agentId` / `agentVersionId`；客户端提交这些字段时服务端必须拒绝（400，error code 如 `TASK_AGENT_IMMUTABLE`）。
+- Task 创建后 `agentId` / `agentVersionId` 不可通过普通 API（含 PATCH Task）修改。
+- MVP 不提供 `:change-agent` / `:upgrade-agent-version` 之类 endpoint；未来若提供 Task Agent Version 升级，必须是明确的显式操作并单独做 ADR / 产品设计。
 
 ### Run
 
@@ -212,8 +217,8 @@ POST /api/skill-versions/{id}:clone       # Clone Published SkillVersion → Per
 
 ```text
 GET   /api/skill-categories
-POST  /api/skill-categories               # 仅 Platform Admin
-PATCH /api/skill-categories/{id}          # 仅 Platform Admin
+POST  /api/skill-categories               # 仅 Workspace Admin
+PATCH /api/skill-categories/{id}          # 仅 Workspace Admin
 ```
 
 普通用户不能创建 / 修改 Category；Skill.categoryId NOT NULL。

@@ -66,7 +66,7 @@ Administration（Admin / 授权角色额外可见）
 └── Audit
 ```
 
-说明：Workspace Agent Templates 由 Platform Admin 在 Agents 页的“平台模板”视图管理；Workspace Skills 由 Platform Admin 在 Skills 页“平台”Tab 管理（见 §10、§14）。普通员工的导航中不出现 Administration 入口。
+说明：Workspace Agent Templates 由 Workspace Admin 在 Agents 页的“平台模板”视图管理；Workspace Skills 由 Workspace Admin 在 Skills 页“平台”Tab 管理（见 §10、§14）。普通员工的导航中不出现 Administration 入口。
 
 ## 5. App Shell
 
@@ -102,7 +102,7 @@ More / Settings
 ```
 
 - `＋ 新建会话`：点击立即进入新的聊天工作区。
-- `＋ 新建任务`：左侧第二个固定入口，点击进入 Task Workspace。
+- `＋ 新建任务`：左侧第二个固定入口，点击进入 New Task Composer（尚未持久化的新建任务界面，见 §7.1）。
 - 历史记录统一展示 Conversation + Task，按时间分组（今天 / 昨天 / 更早）。
 - **不默认显示** Overview / Runs / Tools / Models / Policies / Audit——这些治理入口在 Administration，不挤占员工日常导航。
 - 不展示搜索框和用户资料大卡片。
@@ -143,7 +143,7 @@ Conversation / Task 点击后在主区域打开 Tab，顶部类似 IDE：
 
 ### 5.4 Administration 入口
 
-Platform Admin / 授权角色登录后，左侧导航底部（More 上方）额外出现 Administration 分组（Overview / Teams / Models / Tools / Skill Categories / Policies / Approvals / Budgets / Audit）。普通 Employee 不可见。
+Workspace Admin / 授权角色登录后，左侧导航底部（More 上方）额外出现 Administration 分组（Overview / Teams / Models / Tools / Skill Categories / Policies / Approvals / Budgets / Audit）。普通 Employee 不可见。
 
 ## 6. Conversation Workspace（新建会话）
 
@@ -170,31 +170,65 @@ Platform Admin / 授权角色登录后，左侧导航底部（More 上方）额�
 
 ## 7. Task Workspace（新建任务）
 
-点击 `＋ 新建任务` 进入 Task Workspace；创建前先选择 Agent。
+Task 有两个必须区分的状态：**New Task Composer**（尚未持久化，Task 创建前）与 **Existing Task Workspace**（Task 已创建）。Agent 固定属于 Task：创建时选择，创建后不可更换。
 
-Agent Picker 只显示：
+### 7.1 New Task Composer（Task 创建前）
 
-- 当前用户的 Personal Agent
-- ENABLED（可用）
-- 已存在 Published Version
-- 当前用户有权限使用
-
-底部输入框：
+点击 `＋ 新建任务` 进入一个**尚未持久化**的 New Task Composer。此时底部输入框：
 
 ```text
-┌─────────────────────────────────────────────┐
-│ 输入任务指令或继续告诉 Agent...             │
-│                                             │
-│ [🤖 Coding Agent ▼]                 [发送]  │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│ 输入任务指令...                              │
+│                                              │
+│ [🤖 选择 Agent ▼]                    [发送]  │
+└──────────────────────────────────────────────┘
 ```
 
+- **Agent Selector 只存在于 New Task Composer**。候选只显示：
+  - 当前用户的 Personal Agent（owner = 当前用户）
+  - `status = ENABLED`（可用）
+  - 存在 Published Version
+  - 当前 Published Version 的 Effective Capability 仍然有效
+- 选择 Agent 后显示 `Coding Agent v1.2.0`（Agent Name + Version）。
 - MVP 只允许选择一个 Agent；不出现 Add Agent / Agent Team / Supervisor / Multi-Agent。
+- **第一次发送消息时才持久化**：
+
+```text
+POST /api/tasks
+↓
+固定 agentId
+↓
+固定 exact agentVersionId
+↓
+创建 Task
+↓
+创建 Run #1
+```
+
+### 7.2 Existing Task Workspace（Task 创建后）
+
+Task 一旦创建，即固定 `agentId` + exact Published `agentVersionId`；底部 Agent Selector 必须变成**只读身份展示**：
+
+```text
+┌──────────────────────────────────────────────┐
+│ 继续告诉 Agent...                            │
+│                                              │
+│ 🤖 Coding Agent · v1.2.0              [发送] │
+└──────────────────────────────────────────────┘
+```
+
+- **不显示 ▼**；不提供 Switch Agent，不提供 Switch Agent Version。
+- 明确显示 Agent Avatar + Agent Name + **Pinned Agent Version**，让用户理解：即使之后 Coding Agent 发布了 v1.3.0，当前 Task 仍然继续使用 v1.2.0。
+- Task = 一个固定 Agent 工作上下文。如果用户想换 Agent，应该 `＋ 新建任务`，而不是改变已有 Task。
+- MVP 不做 Upgrade Task Agent Version；未来如果增加升级能力，必须是明确的显式操作，并单独做 ADR / 产品设计。
+
+### 7.3 执行规则（不变）
+
 - Task 创建时固定该 Agent 的 exact Published AgentVersion；不自动跟随 Agent 后续新版本。
 - 每条新用户指令 → 新 Run（Run #1、Run #2…）；Approval 批准后恢复**同一个 Run**。
 - Task 状态只有 ACTIVE / ARCHIVED；执行状态从 Current Run 派生（聊天流顶部轻量展示当前 Run 状态：Running / Waiting Approval / Completed…）。
 
-### Inspector（右侧栏）
+### 7.4 Inspector（右侧栏）
 
 Task 的右侧 Inspector 可展开，Tabs：
 
@@ -250,11 +284,11 @@ Personal Agent **Card Grid**（不是 Table）。Desktop 每行 4 个 Card。
 ```
 
 - Card 至少展示：Avatar、Agent Name、Created At、可用 / 已停用（ENABLED / DISABLED）、Primary Action。
-- ENABLED：Primary Action 为 `[启动任务]`（进入 Task Workspace 并预选该 Agent）；DISABLED：为 `[启用]`。
+- ENABLED：Primary Action 为 `[启动任务]`（进入 New Task Composer 并预选该 Agent）；DISABLED：为 `[启用]`。
 - `[···]`：启用 / 停用、查看详情等次级动作。
 - 不要把所有 Model / Tool / Token 信息塞进 Card；进入 Agent Detail 再看。
 - 右上角：`[+ 创建 Agent]`。
-- Platform Admin 额外可见“平台模板”视图（管理 Workspace Agent Templates，复用 Card Grid + 创建流程，创建时 scope = WORKSPACE）。
+- Workspace Admin 额外可见“平台模板”视图（管理 Workspace Agent Templates，复用 Card Grid + 创建流程，创建时 scope = WORKSPACE）。
 
 ## 10. Create Agent
 
@@ -353,7 +387,7 @@ Skills 是普通员工左侧一级入口。
 - 员工可以：查看平台 Skill、查看所在 Team Skill、查看自己的 Skill、Enable / Disable 可访问 Skill、Clone 平台 / 团队 Skill、创建 Personal Skill。
 - Clone = Snapshot Copy（记录 sourceSkillVersionId）；源 Skill 后续更新不影响 Personal Skill Clone、已 Published 的 AgentVersion 或已绑定的 Conversation。
 - 右上角 `[+ 创建 Skill]`：从模板创建 / 从空白创建；普通员工 Scope 固定 PERSONAL。
-- Platform Admin 在“平台”Tab 获得管理动作（创建 / 发布 / 停用 Workspace Skill，scope = WORKSPACE）；Skill 本体的 Category 归属由 Administration → Skill Categories 管理。
+- Workspace Admin 在“平台”Tab 获得管理动作（创建 / 发布 / 停用 Workspace Skill，scope = WORKSPACE）；Skill 本体的 Category 归属由 Administration → Skill Categories 管理。
 
 ## 14. Model 用户体验（Employee 视角）
 
@@ -410,7 +444,7 @@ Team 列表（名称、成员数、Team Admin）、Team Member 管理、Team Pol
 
 ### Skill Categories
 
-Category 列表（名称、描述、图标、排序、状态、Skill 数量）与增改管理。仅 Platform Admin；普通用户只读。
+Category 列表（名称、描述、图标、排序、状态、Skill 数量）与增改管理。仅 Workspace Admin；普通用户只读。
 
 ### Policies
 
@@ -506,7 +540,7 @@ Employee Workspace 必须可点击演示：
 3. Model Selector
 4. /skill Picker
 5. 新建任务
-6. Agent Selector
+6. Agent Selector（New Task Composer 选择 Agent 并显示 Agent + Version；发送后创建 Task 并固定；Existing Task 只读展示固定 Agent · Pinned Version，无 ▼ / 无 Switch Agent）
 7. Task 多轮工作会话
 8. Task → Run 状态展示
 9. 多 Conversation / Task Tabs

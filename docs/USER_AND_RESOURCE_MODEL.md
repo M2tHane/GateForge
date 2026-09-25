@@ -1,11 +1,11 @@
 # User & Resource Model — Workspace / Team / User / Agent / Skill / Conversation / Task / Run
 
-本文档是 GateForge v1.2 中以下内容的**唯一详细定义**：
+本文档是 GateForge v1.2 / v1.2.1 中以下内容的**唯一详细定义**：
 
 - Workspace / Team / User
 - Resource Scope（WORKSPACE / TEAM / PERSONAL）
-- Role（Platform Admin / Team Admin · Team Builder / Employee / Auditor · Operator）
-- Effective Capability
+- Role（Workspace Admin / Team Admin / Team Builder / Employee / Auditor / Operator）
+- Effective Capability（Multi-Team 解析模型）
 - Agent Ownership / Agent Template Clone / Personal Agent
 - Skill Ownership / SkillVersion / Skill Template Clone / Skill Category
 - Conversation / Task / Run 及三者关系
@@ -50,34 +50,64 @@ PERSONAL  → 我的
 
 ## 3. Role
 
-MVP 至少定义四类角色：
+### 3.1 命名：Workspace Admin
 
-| 角色 | 说明 |
-|---|---|
-| Platform Admin | Workspace 级管理员 |
-| Team Admin / Team Builder | Team 级管理员与 Agent / Skill 构建者 |
-| Employee | 普通员工，产品的主体用户 |
-| Auditor / Operator | 只读治理与运维视角 |
+Workspace = 一个企业 / 公司级隔离边界。因此企业内部管理员正式命名为 **Workspace Admin**（稳定枚举 `WORKSPACE_ADMIN`），不再使用 Platform Admin / `PLATFORM_ADMIN`——后者容易与 GateForge 平台级超级管理员混淆。
 
-### Platform Admin 控制
+关于 GateForge 平台级管理员：当前产品是单个 GateForge 部署承载多个 Workspace，但 v1 不实现 SaaS Platform Administration；**WORKSPACE_ADMIN 是当前企业治理的最高业务角色**。未来若真的需要 SYSTEM_ADMIN / PLATFORM_OPERATOR 管理 GateForge 部署层，另做设计（ADR），不混入当前角色模型。
 
-- Workspace / Teams / Members
+### 3.2 角色定义
+
+MVP 定义六类角色（内部稳定枚举）：
+
+| 角色 | 稳定枚举 | 说明 |
+|---|---|---|
+| Workspace Admin | `WORKSPACE_ADMIN` | 企业（Workspace）级管理员，当前企业治理的最高业务角色 |
+| Team Admin | `TEAM_ADMIN` | Team 级管理员 |
+| Team Builder | `TEAM_BUILDER` | Team Agent Template / Team Skill 构建者 |
+| Employee | `EMPLOYEE` | 普通员工，产品的主体用户 |
+| Auditor | `AUDITOR` | 只读审计 |
+| Operator | `OPERATOR` | 运行 / 运维相关受控权限 |
+
+UI 文案映射（中文界面可以保持业务名称，不要求处处展示枚举）：
+
+```text
+WORKSPACE_ADMIN → 管理员
+TEAM_ADMIN      → 团队管理员
+TEAM_BUILDER    → 团队构建者
+EMPLOYEE        → 员工
+AUDITOR         → 审计员
+OPERATOR        → 运维人员
+```
+
+### 3.3 各角色职责
+
+#### Workspace Admin 控制
+
+- Workspace Settings
+- Teams / Members
 - Approved Models / Model Policies
 - Tool Registry / MCP Servers
-- High-risk Tool Policy / Global Policy
+- High-risk Tool Policy / Global Policy（Workspace Policies）
 - Budget
 - Skill Categories
 - Workspace Agent Templates
 - Workspace Skills
 
-### Team Admin / Team Builder 控制
+#### Team Admin 控制
 
-- Team Agent Templates
-- Team Skills
-- Team 成员允许的能力范围（Team Policy）
+- Team Members
+- Team Resources（Team Agent Template / Team Skill）
+- Team Policy（Team 成员允许的能力范围）
 - Team 范围配置
 
-### Employee 可以
+#### Team Builder 可以
+
+- 创建 / 维护 Team Agent Template
+- 创建 / 维护 Team Skill
+- **不必拥有** Team Member 管理权限（这是与 Team Admin 的关键区别）
+
+#### Employee 可以
 
 - 创建自己的 Personal Agent
 - 从 Workspace / Team Agent Template 创建 Agent（Clone）
@@ -88,7 +118,7 @@ MVP 至少定义四类角色：
 - 创建 Conversation
 - 创建 Task
 
-### Employee 不能
+#### Employee 不能
 
 - 添加 Provider Secret（API Key / Endpoint Secret / Fallback Secret）
 - 私自连接 MCP Server
@@ -96,26 +126,130 @@ MVP 至少定义四类角色：
 - 提升 Tool 权限
 - 绕过 Workspace / Team Policy
 
-角色存放在 identity Domain 的 RoleBinding（Workspace 级：PLATFORM_ADMIN / AUDITOR / EMPLOYEE）与 TeamMember.role（TEAM_ADMIN / MEMBER）中；角色只影响管理 API 授权，不改变 §4 的能力交集原则。
+#### Auditor / Operator
+
+- Auditor：只读审计——查看运行 Trace、Tool Calls、Policy Decision、Approval、Token、Cost、Failure 和 Release 历史，不拥有管理写权限。
+- Operator：运行 / 运维相关受控权限；不拥有 Workspace / Team 治理配置的管理权限。
+
+### 3.4 角色存放
+
+角色存放在 identity Domain 的 RoleBinding（Workspace 级：`WORKSPACE_ADMIN / AUDITOR / OPERATOR / EMPLOYEE`）与 TeamMember.role（`TEAM_ADMIN / TEAM_BUILDER / MEMBER`）中；角色只影响管理 API 授权，不改变 §4 的能力解析模型。MVP 不为这些角色提前实现复杂企业 IAM，仍使用 Membership / TeamMembership / RoleBinding 等当前简单模型。
 
 ## 4. Effective Capability
 
-员工在创建 Agent / 使用 Model / 选择 Tool / 使用 Skill 时，候选能力全部来自 Effective Capability：
+### 4.1 Effective Capability 不是简单四集合全局交集
+
+Effective Capability **不应被理解为**把"用户所属所有 Team 的 Policy"与 Workspace Policy / User Permission / Agent Configuration 做全局交集。
+
+Team 是 **资源来源 + 授权域**，不是全部 Membership Policy 的全局求交集。一个 User 可以属于多个 Team；不同 Team 开放的能力不同，用户可以组合各 Team 各自合法授予的资源。把用户所属的所有 Team Policy 直接全局求交集是**错误语义**：它会让多 Team 用户连每个 Team 各自合法的能力都无法使用。
+
+正确表达：
 
 ```text
-Workspace Policy ∩ Team Policy ∩ User Permission ∩ Agent Configuration
+Workspace Boundary
+∩ User Permission
+∩ Agent Configuration
+∩ Applicable Team Grants
 = Effective Capability
 ```
 
-原则：**下层只能缩小能力，不能扩大能力。**
+其中 **Applicable Team Grants** 是"按资源来源逐个成立的 Team 授权"（见 §4.3），不是一个把所有 Team Policy 合并/求交后的全局集合。
 
-例：
+### 4.2 解析模型
+
+1. Workspace Policy 定义企业级最大边界。
+2. User Permission 定义主体本身允许范围。
+3. 对每个候选资源按 Scope 校验：
+   - **WORKSPACE Scope** → 校验 Workspace Policy；
+   - **TEAM Scope** → 校验所属 Team Membership + Team Policy + Workspace Policy；
+   - **PERSONAL Scope** → 校验 ownerUserId + Workspace Policy。
+4. 通过的资源组成 **User Effective Candidate Set**。
+5. Agent Configuration 从 Candidate Set 中选择子集。
+6. Tool 真正执行时仍必须再次经过 Runtime Tool Gateway / Policy。
+
+原则：**任何下层只能缩小能力，不能扩大能力。** Workspace Policy 始终是最高上限（见 §4.4）。
+
+### 4.3 Team Resource 按来源 Team 独立授权
+
+每一个 Team Scope Resource 都必须独立检查其**来源 Team**：
+
+对 `resource.scope = TEAM` 且 `resource.teamId = X` 的资源，要求：
+
+```text
+currentUser ∈ X（Team Membership）
+AND X 的 Team Policy 允许该资源
+AND Workspace Policy 不禁止该资源
+```
+
+例：Personal Agent 想同时绑定 Backend Team 的 Java Backend Skill 与 Data Team 的 Database Skill，必须分别判断：
+
+- Resource A：`scope = TEAM`，`teamId = backend-team` → currentUser ∈ backend-team AND backend-team policy allows this resource。
+- Resource B：`scope = TEAM`，`teamId = data-team` → currentUser ∈ data-team AND data-team policy allows this resource。
+
+两个判断分别通过后，Personal Agent 可以同时组合这两个 Team 合法授权的能力。因此 Personal Agent 可以组合：
+
+```text
+Workspace Resources
++ Team A Resources
++ Team B Resources
++ Personal Resources
+```
+
+前提是**每个资源都分别通过自己的 Scope / Membership / Policy 校验**。
+
+禁止：因为用户同时属于 Team A 和 Team B，就先计算 `Team A Policy ∩ Team B Policy` 再授权。
+
+### 4.4 Workspace Boundary 始终是最高上限
+
+虽然不同 Team 的合法资源可以组合，但 Workspace Policy 始终是最高权限边界：
+
+- Team 只能在 Workspace Boundary 内授予；**Team 不能提升 Workspace 权限**。
+- **User 不能提升 Team / Workspace 权限**。
+- **Agent Configuration 也只能继续缩小**。
+
+例：Workspace Policy `DENY production-db.write`，即使 Data Team Policy `ALLOW production-db.write`，最终结果也必须是 **DENY**。
+
+### 4.5 跨 Team 组合示例
+
+张三同时属于：
+
+- Backend Team
+- Data Team
+
+平台资源：GPT Coding Model（`scope = WORKSPACE`）。
+
+- Backend Team 发布：Java Backend Skill、GitHub Tool（`scope = TEAM`，`teamId = backend-team`）。
+- Data Team 发布：SQL Analysis Skill、Data Warehouse MCP Tool（`scope = TEAM`，`teamId = data-team`）。
+
+张三的 Personal Agent 可以选择：
+
+- GPT Coding Model（Workspace 资源：校验 Workspace Policy）；
+- Java Backend Skill / GitHub Tool（TEAM 资源：张三 ∈ backend-team 且 Backend Team Policy 允许）；
+- SQL Analysis Skill / Data Warehouse MCP Tool（TEAM 资源：张三 ∈ data-team 且 Data Team Policy 允许）。
+
+因为**每项 Team Resource 分别验证对应 Membership / Team Policy**，Backend Team 与 Data Team 的能力不需要互相做交集；张三的 Personal Agent 可以同时组合这些 Team 合法授权的能力。
+
+但如果 Workspace Policy 禁止 `production-db.write`，则无论 Data Team Policy 是否允许，张三的 Agent 都不能获得该能力（Workspace Boundary 是最高上限，见 §4.4）。
+
+### 4.6 Effective Capability ≠ Tool Execution Authorization
+
+Effective Capability 是运行时候选集的来源，**不是真正的 Tool Execution Authorization**。Tool 执行授权仍由每次调用时的统一执行链决定：
+
+```text
+ToolRequest
+↓
+Tool Gateway
+↓
+Policy
+↓
+ALLOW / DENY / REQUIRE_APPROVAL
+```
+
+补充示例（原则不变）：
 
 - Workspace Policy 禁止 `production-db.write`，则 Team Policy / User Permission / Agent Configuration 都不能重新允许它。
-- Team 未开放的 Model，其成员在任何 Personal Agent 中都不可选。
-- Agent Configuration 只能在其 owner 的 Effective Capability 范围内选择子集。
-
-Effective Capability 是运行时候选集的来源，不是新的执行链：真正的 Tool 执行授权仍由 Tool Gateway / Policy（ALLOW / DENY / REQUIRE_APPROVAL）在每次调用时决定。
+- Team 未开放的 Model，其成员在任何 Personal Agent 中都不可选（该 Model 不进入 Candidate Set）。
+- Agent Configuration 只能在其 owner 的 User Effective Candidate Set 范围内选择子集。
 
 ## 5. Agent Ownership：Personal Agent 与 Agent Template
 
@@ -148,7 +282,7 @@ Agent
 | 类型 | kind | scope | 约束 |
 |---|---|---|---|
 | Personal Agent | PERSONAL | PERSONAL | ownerUserId 必填 |
-| Workspace Template | TEMPLATE | WORKSPACE | 由 Platform Admin 管理 |
+| Workspace Template | TEMPLATE | WORKSPACE | 由 Workspace Admin 管理 |
 | Team Template | TEMPLATE | TEAM | teamId 必填 |
 
 ### 5.3 Template Clone 链路
@@ -366,7 +500,9 @@ TaskMessage
 规则：
 
 - Task 创建时用户选择一个 Personal Agent，系统固定 `agentId` + `agentVersionId`（exact Published AgentVersion）。
+- **Task 创建后 `agentId` / `agentVersionId` 不可变**：不可通过普通 API 修改；`POST /api/tasks/{id}/messages` 不接受 `agentId` / `agentVersionId`（提交即拒绝）；MVP 不提供 `:change-agent` / `:upgrade-agent-version` endpoint。想换 Agent 只能新建 Task（见 API_CONTRACTS.md §5）。
 - Task 生命周期内**不自动跟随** Agent 后续新 Version；升级必须显式操作，MVP 不做自动升级。
+- 前端区分 **New Task Composer**（Task 创建前，可选择 Agent）与 **Existing Task Workspace**（Task 创建后，只读展示固定 Agent + Pinned Version）；详细 UI 规格见 frontend/DESIGN.md §7。
 - Task.status 只表达产品生命周期（ACTIVE / ARCHIVED）；**不要复制 Run 状态机**，不创建 TASK_RUNNING / TASK_WAITING_APPROVAL；执行状态从 Current Run 派生。
 
 ### 7.3 Run
@@ -436,7 +572,7 @@ SkillCategory
 └── createdAt
 ```
 
-- Skill Category 由 **Platform Admin** 创建；普通用户不能创建 Category。
+- Skill Category 由 **Workspace Admin** 创建；普通用户不能创建 Category。
 - Skill 必须属于 exactly one Category（`categoryId NOT NULL`）。
 - 示例：开发 / 设计 / 测试 / 数据 / 运维 / 产品 / 文档。
 - **Scope 与 Category 是正交维度**：如 “Java Backend” 可以是 `scope = WORKSPACE`、`category = 开发`。不要混淆。

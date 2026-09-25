@@ -35,7 +35,7 @@ Control Plane 新增：
 
 MVP 约束：
 - Conversation 不绑定 Agent、不产生 Run、不执行 Tool；禁止直接调用 Provider SDK。
-- Task 固定创建时的 Published AgentVersion；不自动跟随新版本。
+- Task 固定创建时的 Published AgentVersion；不自动跟随新版本；`POST /api/tasks/{id}/messages` 不接受 `agentId` / `agentVersionId`（Task Agent 不可变，P17）。
 - Task 单 Agent（AgentEngineRegistry 每个 Run 只启动一个 engine 实例）。
 
 ## 架构验证要求

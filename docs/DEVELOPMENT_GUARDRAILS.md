@@ -52,7 +52,7 @@ Provider SDK / API Key 不进入普通 Agent implementation，也不进入 Agent
 ### G8 — bash 不是权限逃生通道
 若 `git.push` 的 Policy 是 REQUIRE_APPROVAL，则不能通过 `bash("git push ...")` 绕开审批。shell executor 至少受 workspace sandbox、command policy、filesystem scope、network policy、environment / secret isolation 控制。
 
-## 2b. 产品模型不变量（v1.2 冻结）
+## 2b. 产品模型不变量（v1.2 / v1.2.1 冻结）
 
 以下产品不变量与 §2 的系统不变量同等优先（唯一定义见 USER_AND_RESOURCE_MODEL.md）：
 
@@ -86,7 +86,7 @@ Agent Template Clone 与 Skill Clone 都记录来源（sourceTemplateVersionId /
 - 已绑定的 Conversation SkillVersion。
 
 ### P10 — Effective Capability 只能缩小
-Workspace Policy ∩ Team Policy ∩ User Permission ∩ Agent Configuration；下层只能缩小能力，不能扩大能力。Workspace 禁止的动作，Team / User / Agent 都不能重新允许。
+Effective Capability 按 `Workspace Boundary ∩ User Permission ∩ Agent Configuration ∩ Applicable Team Grants` 解析（解析模型见 USER_AND_RESOURCE_MODEL.md §4）：Team Grant 按资源来源 Team 逐资源校验（Team Membership + Team Policy + Workspace Policy），不得把用户所属所有 Team Policy 简单全局求交集；下层只能缩小能力，不能扩大能力。Workspace 禁止的动作，Team / User / Agent 都不能重新允许。
 
 ### P11 — Conversation 必经 Model Gateway
 Conversation Runtime 禁止直接调用 Provider SDK；Skill 导入不改变这一点。
@@ -100,6 +100,18 @@ Task 创建时固定 agentId + agentVersionId，不自动跟随 Agent 新版本�
 ### P14 — Employee 权限边界
 Employee 不能添加 Provider Secret、私自连接 MCP Server、创建 Skill Category、提升 Tool 权限或绕过 Workspace / Team Policy。
 
+### P15 — Multi-Team Grants Are Resource-Scoped
+不同 Team 的合法资源分别按来源 Team 授权（Team Membership + Team Policy + Workspace Policy 逐资源校验）；不得把用户所属所有 Team Policy 简单全局求交集。Personal Agent 可以组合 Workspace Resources + 各 Team Resources + Personal Resources，前提是每个资源分别通过自己的 Scope / Membership / Policy 校验（见 USER_AND_RESOURCE_MODEL.md §4）。
+
+### P16 — Workspace Is The Upper Bound
+Workspace Policy 是最高权限边界。任何 Team / User / Agent 都不能扩大 Workspace Policy：Team 只能在 Workspace Boundary 内授予，User 不能提升 Team / Workspace 权限，Agent Configuration 只能继续缩小。
+
+### P17 — Task Agent Is Immutable
+Task 创建后固定 `agentId` + `agentVersionId`（exact Published AgentVersion）。消息 API 不接受 `agentId` / `agentVersionId`；MVP 不允许中途切换 Agent / AgentVersion，不提供 `:change-agent` / `:upgrade-agent-version`。要换 Agent 只能新建 Task。
+
+### P18 — Workspace Admin Naming
+企业级管理员统一使用 Workspace Admin（稳定枚举 `WORKSPACE_ADMIN`）；`PLATFORM_ADMIN` 不再作为业务角色枚举。v1 不实现 GateForge 平台级超级管理员体系。
+
 ## 3. 每个 PR 的架构检查
 
 提交前回答：
@@ -110,7 +122,7 @@ Employee 不能添加 Provider Secret、私自连接 MCP Server、创建 Skill C
 - 是否新增了 AgentEngine 直接调用 Provider / 执行 Tool 的路径？
 - 是否让 Prompt/LLM 决定了本应由 Runtime 决定的状态？
 - 是否修改了 Published Version 的不可变语义？是否破坏 exact SkillVersion / exact ToolVersion 绑定？
-- 是否违反 P1–P14 中的产品不变量（如 Template 实时继承、Task 自动升级、Agent 使用 RUNNING 状态、Skill 获得执行权限）？
+- 是否违反 P1–P18 中的产品不变量（如 Template 实时继承、Task 自动升级、Agent 使用 RUNNING 状态、Skill 获得执行权限、把多 Team Policy 全局求交集、Task 创建后切换 Agent）？
 - 是否改变 Run / Approval 状态机或 Task → Run 执行规则？
 - 是否需要 ADR？
 
