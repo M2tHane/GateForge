@@ -50,3 +50,26 @@ Administration 骨架（可点击即可，不深做）：
 - 主要页面不再需要结构级重做。
 
 通过后再实现后端，避免数据库/API 跟着 UI 反复变。
+
+## Implementation Progress
+
+### Completed
+- [x] 工程基础：apps/web-console 接入 theme.css 设计基线；路由骨架全部就位
+- [x] 类型 / Mock 数据种子 / Workspace Store（mock backend：对话流式、Run 模拟、Template/Skill Snapshot Clone、Tab 模型）
+- [x] App Shell：左侧导航（＋新建会话 / ＋新建任务 / Agents / Skills / 今天·昨天·更早 History / More；Admin 视角额外 Administration 分组）+ IDE 式多 Tab Bar
+- [x] 统一 Skill Picker Drawer（§8，Conversation /skill 与 Agent Editor 复用）
+- [x] Task Workspace：New Task Composer（Agent Selector）→ 发送创建并固定 Agent + Pinned Version；Existing Task 只读身份展示（无 ▾ / 无 Switch）；每条新指令 → 新 Run
+- [x] Task Inspector：Run / Files / Tool / Trace / Approval 五 Tab；聊天流仅简洁工具进度
+- [x] Approval Mock Flow：Run 进入 WAITING_APPROVAL → 批准后同一 Run 恢复并完成（store 级测试覆盖）；My Approvals 页面
+- [x] Skills 页面：平台 / 团队 / 我的 Tabs + Category 过滤 + Enable/Disable + Clone（Snapshot Copy）+ 创建 Skill
+- [x] Store scoped tests：13 项通过（Task 固定 Agent、新指令新 Run、审批同 Run 恢复、Clone 快照、Conversation P1 语义、Tab 模型）
+
+### In Progress
+- [ ] Conversation Workspace（SubAgent 实现中）
+- [ ] Agents 页面群：Card Grid / Create / Template Picker / Editor / Publish / Detail（SubAgent 实现中）
+
+### Pending
+- [ ] Administration 骨架（Models / Tools+MCP / Skill Categories / Policies / Approvals / Teams / Audit）
+- [ ] 整合验证 + 浏览器走查 DESIGN.md §20 的 25 项交互
+- [ ] Stage 01 Gate 验证 + Stage Review
+
