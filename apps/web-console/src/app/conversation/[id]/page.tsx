@@ -1,7 +1,7 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { ConversationWorkspace } from "@/features/conversation/ConversationWorkspace";
 
-export default function ConversationWorkspace() {
-  return <PagePlaceholder title="ConversationWorkspace" hint="Conversation Workspace（多轮聊天 · Model Selector · /skill）" />;
+export default function ConversationPage() {
+  return <ConversationWorkspace />;
 }
