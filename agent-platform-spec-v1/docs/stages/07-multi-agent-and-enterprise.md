@@ -1,0 +1,44 @@
+# Stage 07 — Multi-Agent / A2A / Enterprise Integration
+
+## 目标
+
+在单 Agent 控制链稳定后，再扩展复杂协作能力。
+
+## 实现方向
+
+### Multi-Agent
+- Supervisor / Specialist
+- DAG scheduler
+- Task Contract
+- Artifact contract
+- child run / parent run relationship
+- shared budget hierarchy
+
+### A2A
+- Agent Card
+- service identity
+- trusted Agent allowlist
+- request scope propagation
+
+### Enterprise Integration
+- MCP servers
+- GitHub
+- Jira / Slack / internal systems
+- connector credential isolation
+
+### Policy
+需要支持 parent/child Agent delegation：
+
+```text
+User grants MainAgent scope
+↓
+MainAgent delegates subset to Specialist
+↓
+Specialist cannot exceed parent scope
+```
+
+## Gate
+
+- 子 Agent 的权限只能等于或小于父级有效权限。
+- Parent Run 能完整查看 Child Run trace 和费用。
+- Multi-Agent 不绕开 Stage 04/05 已建立的 Model/Tool/Approval 控制链。
