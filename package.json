@@ -1,0 +1,17 @@
+{
+  "name": "gateforge",
+  "private": true,
+  "version": "0.0.0",
+  "description": "GateForge — Enterprise Agent Platform (staged development monorepo)",
+  "packageManager": "pnpm@11.23.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @gateforge/web-console dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  }
+}

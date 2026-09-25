@@ -89,3 +89,22 @@
 14. 一个 User 属于多个 Team 时，是否将全部 Team Policy 做全局交集？（唯一正确答案：**否**——Team Resource 按来源 Team 独立校验 Membership + Team Policy，Workspace Policy 始终作为最高边界）
 15. Task 创建后是否允许切换 Agent？（唯一正确答案：**否**——Task 固定 `agentId` + exact Published `agentVersionId`）
 16. 企业级最高业务管理员角色叫什么？（唯一正确答案：**WORKSPACE_ADMIN**）
+
+## Implementation Progress
+
+### Completed
+- [x] 全部 10 份产物已存在并冻结（PRD / ARCHITECTURE / USER_AND_RESOURCE_MODEL / AGENT_CAPABILITY_MODEL / CONTROL_PLANE_DOMAINS / RUNTIME_CONTRACTS / DATA_MODEL / API_CONTRACTS / DESIGN.md / theme.css）
+- [x] API error contract、ID、时间、审计、correlation id 规范确认已由 API_CONTRACTS §1/§15 与 DATA_MODEL §1/§3 覆盖
+- [x] Monorepo 骨架（pnpm workspace：apps/*、packages/*）+ `apps/web-console`（Next.js 15 / React 19 / TS strict / Tailwind v4，接入 frontend/theme.css 设计基线）
+- [x] `packages/api-contracts`、`packages/event-contracts`、`packages/ui` 包边界建立；`infra/` 占位；`scripts/dev.sh`、`scripts/test.sh`
+- [x] 基础 CI：`.github/workflows/ci.yml`（install → lint → typecheck → test → build）
+- [x] Gate 16 问文档一致性验证：16/16 UNAMBIGUOUS（证据见 `docs/stages/00-stage-review.md`）
+- [x] Stage Review：`docs/stages/00-stage-review.md`
+
+### In Progress
+- [ ]（无）
+
+### Pending
+- [ ]（无）
+
+**Stage 00 Gate：通过（2026-09-26）。允许进入 Stage 01。**
