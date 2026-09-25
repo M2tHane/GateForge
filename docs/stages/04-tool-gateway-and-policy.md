@@ -16,7 +16,7 @@
 - Built-in Executors
 - MCP Server Registry（McpServerDefinition）
 - MCP tools/list discovery
-- MCP Tool synchronization（同步 ToolDefinition / ToolVersion，管理员选择可绑定项）
+- MCP Tool synchronization（版本化同步，见 “MCP sync 版本化”）
 - Tool Gateway（统一执行链）
 - Policy Enforcement
 
@@ -33,7 +33,25 @@ builtin.write
 builtin.bash
 ```
 
-并至少接入一个 MCP Server 完成端到端验证：`tools/list` → 同步 ToolDefinition / ToolVersion → 管理员绑定 → Agent 请求 → Policy → 执行。
+并至少接入一个 MCP Server 完成端到端验证：`tools/list` → 同步 ToolDefinition / ToolVersion → 管理员绑定 exact ToolVersion → Agent 请求 → Policy → 执行。
+
+## MCP sync 版本化
+
+```text
+tools/list
+↓
+ToolDefinition identity matching
+↓
+schema/checksum comparison
+↓
+changed?
+├─ no → reuse existing ToolVersion
+└─ yes → create new ToolVersion
+↓
+管理员选择 ToolVersion 绑定 Agent Version
+```
+
+禁止 sync 时原地覆盖历史 ToolVersion；旧 ToolVersion 必须保持可查询。MCP sync 不允许静默改变已经 Published Agent Version 的 ToolBinding。
 
 ## 统一执行链
 
@@ -89,3 +107,5 @@ Executor（BUILTIN / MCP）
 - Policy Decision 有 matched rules 和 reason code。
 - `bash("git push ...")` 无法绕过 `git.push` 的审批策略。
 - 至少一个 MCP Tool 完成端到端调用验证。
+- MCP schema 更新后会生成新 ToolVersion；已 Published Agent Version 不受影响。
+- Tool Call 能追踪到 exact ToolVersion。

@@ -84,7 +84,7 @@ Audit / Trace / Cost 可追踪
 - Tool Registry：ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition。
 - Tool Provider：BUILTIN / MCP / HTTP（预留 future providers）；MCP 是 Tool Provider Protocol，不是 Tool 本身。
 - v1 Built-in Tools：builtin.read、builtin.glob、builtin.grep、builtin.edit、builtin.write、builtin.bash。
-- MCP Server 接入：tools/list 同步 ToolDefinition / ToolVersion，管理员选择可绑定 Tool；至少接入一个 MCP Server 完成端到端验证。
+- MCP Server 接入：tools/list 同步 ToolDefinition / ToolVersion，管理员选择具体 ToolVersion 绑定（Published Version 冻结 exact ToolVersion）；至少接入一个 MCP Server 完成端到端验证。
 - 工具 Scope 与参数 Schema。
 - 每次调用执行权限与 Policy 检查；Built-in Tool 与 MCP Tool 走同一执行链，Built-in Tool 不得绕过 Tool Gateway。
 - 高风险动作进入 Approval；bash 不能成为审批逃生通道（见 docs/AGENT_CAPABILITY_MODEL.md §8）。

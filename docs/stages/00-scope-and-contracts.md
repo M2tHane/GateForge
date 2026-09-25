@@ -10,6 +10,10 @@
 - EngineCapabilities（streaming / checkpoint / interrupt-resume / toolCalling / structuredOutput / multiAgent）
 - Agent Capability Model（Agent Version = Engine / Model Policy / Skills / Tools；Skill 与 Tool 的边界）
 - ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition
+- ToolDefinition vs ToolVersion（identity vs immutable executable contract）
+- ToolBinding binds exact ToolVersion
+- Published Agent Version freezes ToolVersion
+- Runtime never resolves "latest tool version" for historical Runs
 - Tool Provider 抽象（BUILTIN / MCP / HTTP / future providers）
 - Agent Version Manifest
 
@@ -52,3 +56,4 @@
 6. AgentEngine 最小接口与 EngineCapabilities 是否冻结？
 7. Skill 与 Tool 的边界是否明确（Skill 无执行权限）？
 8. Agent Version Manifest 的字段是否冻结？
+9. Published Agent Version 使用的是 ToolDefinition 还是 exact ToolVersion？（唯一正确答案：exact ToolVersion）

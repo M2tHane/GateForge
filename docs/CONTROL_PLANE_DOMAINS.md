@@ -78,7 +78,7 @@ AgentVersion（Agent Capability Model，见 docs/AGENT_CAPABILITY_MODEL.md）
 ├── engine: { type, config }       # 经 AgentEngineRegistry 解析（如 pi）
 ├── modelPolicyId
 ├── skills                         # Prompt / Instructions / Reference，无执行权限
-├── toolBindings                   # 可请求哪些 Tool（builtin.* / MCP / HTTP）
+├── toolBindings                   # 绑定 exact ToolVersion（builtin.* / MCP / HTTP）
 ├── toolPolicyId
 ├── budgetPolicyId
 ├── approvalPolicyId
@@ -90,7 +90,8 @@ AgentVersion（Agent Capability Model，见 docs/AGENT_CAPABILITY_MODEL.md）
 - Published Version immutable；Agent Version Manifest（docs/AGENT_CAPABILITY_MODEL.md §7）是其冻结序列化。
 - 修改 published 配置 → clone draft → publish new version。
 - Runtime 只能通过 Published Version 启动正式 Run；Run 启动后绑定 exact Agent Version，不跟随后续配置改变。
-- ToolBinding 只表示“可以请求哪些 Tool”，不等于授权；真正执行时仍必须经过 Policy 决策。
+- ToolBinding 绑定 exact ToolVersion，只表示“可以请求哪些精确版本的 Tool”，不等于授权；真正执行时仍必须经过 Policy 决策。
+- 发布时冻结 exact ToolVersion；后续 MCP sync 产生新 ToolVersion 不影响已发布版本。
 
 ## 6. model Domain
 
@@ -126,17 +127,35 @@ Runtime 调用 Model Gateway 时只提交 logical model policy reference。
 - ToolPolicy
 - McpServerDefinition
 
-ToolDefinition 包含：
+关系：
+
+```text
+ToolDefinition
+├── ToolVersion
+├── ToolPolicy
+└── provider metadata
+
+AgentVersion
+↓
+ToolBinding
+↓
+ToolVersion
+```
+
+ToolDefinition = Tool identity，包含：
 - name（如 `builtin.read`、`github.create_pull_request`）
 - provider: BUILTIN | MCP | HTTP（预留 future providers）
 - providerRef（BUILTIN 为空 / mcpServerId / HTTP connector ref）
-- inputSchema
 - riskLevel
 - capability tags
 
-ToolVersion 记录 Tool 的 schema 版本与 checksum；MCP Tool 随 `tools/list` 同步产生新版本。
+ToolVersion = immutable executable contract，包含：
+- input schema
+- provider / executor binding
+- version / checksum
+- capability metadata
 
-Built-in Tools 由 Runtime 注册：
+Built-in Tools 由 Runtime 注册（同样产生 ToolDefinition + ToolVersion，Built-in 不是版本概念的例外）：
 
 ```text
 builtin.read
@@ -154,12 +173,16 @@ MCP Server
 ↓
 tools/list
 ↓
-同步 ToolDefinition / ToolVersion
+生成/更新 ToolDefinition
 ↓
-管理员选择哪些 Tool 可以绑定 Agent Version
+生成新的 ToolVersion（schema/checksum 变化时）
+↓
+管理员选择具体 ToolVersion 绑定 Agent Version
 ```
 
-ToolBinding 表示 Agent Version “可以请求哪些工具”，但最终仍需 Policy 决策。Built-in Tool 与 MCP Tool 都必须经过 Tool Gateway 统一执行链（见 docs/AGENT_CAPABILITY_MODEL.md §5）。
+注意：MCP sync 不允许静默改变已经 Published Agent Version 的 ToolBinding；已发布版本继续使用其冻结的 exact ToolVersion，历史 ToolVersion 保持可查询。
+
+ToolBinding 绑定 exact ToolVersion，表示 Agent Version “可以请求哪些精确版本的 Tool”，但最终仍需 Policy 决策。Built-in Tool 与 MCP Tool 都必须经过 Tool Gateway 统一执行链（见 docs/AGENT_CAPABILITY_MODEL.md §5）。
 
 ## 8. policy Domain
 

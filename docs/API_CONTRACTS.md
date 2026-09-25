@@ -22,7 +22,15 @@ POST   /api/agent-versions/{versionId}:publish
 POST   /api/agent-versions/{versionId}:deprecate
 ```
 
-创建 / 修改 Version 的 payload 携带 Agent Version Manifest（engine / modelPolicy / skills / tools，见 docs/AGENT_CAPABILITY_MODEL.md §7），以及 budgetPolicyId / approvalPolicyId。
+创建 / 修改 Version 的 payload 携带 Agent Version Manifest（engine / modelPolicy / skills / tools，见 docs/AGENT_CAPABILITY_MODEL.md §7），以及 budgetPolicyId / approvalPolicyId。`tools` 必须提交 exact `toolVersionId`（`name` 仅用于展示）：
+
+```json
+{
+  "tools": [
+    { "toolVersionId": "tv_123" }
+  ]
+}
+```
 
 禁止 `PATCH published AgentVersion`。
 
@@ -66,6 +74,7 @@ Tool 列表包含 `builtin.*`（由 Runtime 注册，provider = BUILTIN）与 MC
 POST /api/tools                      # 仅用于注册 HTTP provider Tool
 GET  /api/tools
 GET  /api/tools/{toolId}
+GET  /api/tools/{toolId}/versions    # 历史 ToolVersion 列表，供绑定选择
 PATCH /api/tools/{toolId}            # 不允许修改 builtin.* / MCP 同步的 schema
 POST /api/tools/{toolId}:disable
 
@@ -80,7 +89,9 @@ GET  /api/tool-policies/{id}
 PATCH /api/tool-policies/{id}
 ```
 
-MCP sync 只同步定义与版本，产生“可绑定候选”；管理员必须显式选择哪些 MCP Tool 可以绑定到 Agent Version（ToolBinding）。绑定不等于授权，执行仍需 Policy 决策。
+MCP sync 产生“可绑定候选”（ToolDefinition + ToolVersion）；管理员必须显式选择具体 ToolVersion 绑定到 Agent Version（ToolBinding）。绑定不等于授权，执行仍需 Policy 决策。
+
+如果 MCP sync 产生新 ToolVersion，旧版本必须仍然可查询（`GET /api/tools/{toolId}/versions`），不能被原地覆盖。
 
 ## 7. Models
 

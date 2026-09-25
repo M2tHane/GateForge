@@ -42,6 +42,8 @@ Agents
 Runs
 Approvals
 Tools
+  ├─ Tool Registry（二级 Tab）
+  └─ MCP Servers（二级 Tab）
 Models
 Policies
 Budgets
@@ -174,7 +176,21 @@ Tabs：
                            [Save Draft] [Publish]
 ```
 
-Version 编辑的内容即 Agent Version Manifest（docs/AGENT_CAPABILITY_MODEL.md §7）；发布后只读。不要做复杂低代码画布。v1 的核心是可靠版本化，不是视觉编排。
+Version 编辑的内容即 Agent Version Manifest（docs/AGENT_CAPABILITY_MODEL.md §7）；发布后只读。
+
+Tools 区域中管理员选择的是具体 ToolVersion；UI 默认展示最新可选版本并明确版本号：
+
+```text
+GitHub MCP
+
+☑ create_pull_request
+   Version: 7
+   Schema updated: 2026-09-25
+```
+
+Agent Version 已 Published 时，ToolVersion 选择必须只读。
+
+不要做复杂低代码画布。v1 的核心是可靠版本化，不是视觉编排。
 
 ## 10. Runs List
 
@@ -258,6 +274,14 @@ Policy: production-write-approval
 
 ## 13. Tools
 
+Tools 页面顶部使用二级 Tab，不新增一级菜单：
+
+```text
+[Tool Registry] [MCP Servers]
+```
+
+### Tool Registry
+
 Tool List：
 - Name
 - Provider（BUILTIN / MCP / HTTP）
@@ -268,11 +292,48 @@ Tool List：
 Tool Detail：
 - Input Schema
 - Provider / Executor
+- Version / Checksum
 - Default Risk
 - Policy references
 - Recent Calls
 
-`builtin.*` 由 Runtime 注册；MCP Tool 由 MCP Server sync 产生（`tools/list` → 同步 → 管理员选择可绑定项）。Secret 只显示“已配置/未配置”，永不回显。
+`builtin.*` 由 Runtime 注册，同样产生 ToolVersion；MCP Tool 由 MCP Server sync 产生。Schema 变化生成新 ToolVersion，历史 Versions 保持可查询、可绑定选择。
+
+### MCP Servers
+
+MCP Server List：
+- Name
+- Transport
+- Status
+- Tool Count
+- Last Sync
+- Credential Status
+- Actions
+
+Actions：
+- Connect MCP Server
+- Sync Tools
+- Disable
+- View Tools
+- Settings
+
+MCP Server Detail 自上而下：
+
+```text
+基本信息
+↓
+连接状态
+↓
+最近同步结果
+↓
+当前暴露的 Tools
+↓
+每个 Tool 的最新 ToolVersion
+↓
+历史 Versions
+```
+
+Secret 只显示“已配置/未配置”，永不回显。
 
 ## 14. Models
 

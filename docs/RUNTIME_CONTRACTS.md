@@ -49,7 +49,9 @@ Control Plane / Ingress 创建 Run 时生成不可变 Execution Snapshot：
     "engine": { "type": "pi", "config": {} },
     "modelPolicy": "coding-default",
     "skills": [],
-    "tools": []
+    "tools": [
+      { "name": "builtin.read", "toolVersionId": "tv_builtin_read_v1" }
+    ]
   },
   "effectiveConfigVersion": "...",
   "subject": {},
@@ -59,7 +61,7 @@ Control Plane / Ingress 创建 Run 时生成不可变 Execution Snapshot：
 }
 ```
 
-Snapshot 绑定 exact Published Agent Version；manifest 为其冻结内容（见 AGENT_CAPABILITY_MODEL.md §7），Run 生命周期内不跟随配置变化。Snapshot 中可以放引用与已解析的非敏感配置，但不能放 Provider Secret。
+Snapshot 绑定 exact Published Agent Version；manifest 为其冻结内容（含 exact ToolVersion，见 AGENT_CAPABILITY_MODEL.md §7），Run 生命周期内不跟随配置变化，也不动态解析 ToolDefinition 的“最新版本”。Snapshot 中可以放引用与已解析的非敏感配置，但不能放 Provider Secret。
 
 ## 3. Runtime 状态机
 
@@ -114,6 +116,8 @@ Executor
 ```
 
 AgentEngine 不直接执行任何 Tool；Built-in Tool 也没有绕过 Tool Gateway 的本地路径。
+
+ToolRequest 在 Runtime 内部解析后必须得到 `toolDefinitionId` + `toolVersionId`；Tool Gateway 针对 exact ToolVersion 执行（schema 校验、审计、idempotency 均以 ToolVersion 为准）。执行时不允许动态取 ToolDefinition 的“最新版本”，保证历史 Run 确定性、可重放。
 
 ## 5. Tool Gateway Response
 
@@ -175,7 +179,7 @@ Checkpoint metadata 与存储由 Runtime Core 拥有；framework state（engine 
 Tool Gateway 保存：
 
 ```text
-(workspaceId, toolName, idempotencyKey) -> execution result
+(workspaceId, toolVersionId, idempotencyKey) -> execution result
 ```
 
 Runtime 崩溃后重试时，不重复执行 git push / deploy / email 等副作用。

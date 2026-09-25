@@ -19,6 +19,7 @@ Agent Version
 - Agent Version 一旦 PUBLISHED 即不可变；其冻结序列化就是 Agent Version Manifest（见 §7）。
 - Run 启动后绑定 exact Agent Version，不跟随后续配置改变。
 - Tools 只表示“允许请求”，不表示“允许执行”；真正执行与否由 Policy 决定。
+- Tools 绑定到 **exact ToolVersion**；Agent Version 发布时冻结（见 §3、§7）。
 
 ## 2. Skill
 
@@ -37,8 +38,27 @@ Tool = Agent 能请求执行的能力
 ```
 
 - Agent 与 Tool 之间只有一种关系：**请求执行**（ToolRequest）。
-- Tool 拥有 input schema、risk level、provider / executor 引用与版本（ToolVersion）。
 - Skill 与 Tool 的边界：Skill 回答“应该怎么做”，Tool 回答“能做什么动作”。Skill 不是 Tool，Prompt 也不能生成 Tool 权限。
+
+### 3.1 ToolDefinition / ToolVersion / ToolBinding
+
+```text
+ToolDefinition = Tool identity（工具身份）
+↓
+ToolVersion    = immutable executable contract（不可变可执行契约）
+↓
+ToolBinding    = Agent Version 对 exact ToolVersion 的绑定
+```
+
+| 概念 | 职责 | 包含 |
+|---|---|---|
+| ToolDefinition | Tool identity | name、provider、riskLevel 等 identity 元数据 |
+| ToolVersion | immutable executable contract | input schema、provider/executor binding、version/checksum、capability metadata |
+| ToolBinding | AgentVersion → exact ToolVersion | 只表示“这个 Agent Version 可以请求这个精确版本的 Tool”，不代表执行授权 |
+
+- ToolDefinition 负责工具身份；ToolVersion 负责具体不可变的可执行契约。
+- Agent Version 发布时冻结 exact ToolVersion；后续即使 ToolDefinition 出现 v3，旧 AgentVersion 仍固定使用 v2。
+- 实际调用仍必须经过 §5 的统一执行链；ToolBinding 本身不产生执行授权。
 
 ## 4. Built-in Tool 与 MCP
 
@@ -55,6 +75,8 @@ Built-in Tool = Runtime 原生实现的 Tool，由 Runtime 注册进 Tool Regist
 | `builtin.write` | 写文件 |
 | `builtin.bash` | 受控 shell 执行 |
 
+Built-in Tool 由 Runtime 注册时同样产生 ToolDefinition + ToolVersion（如 `tv_builtin_read_v1`）；**Built-in Tool 不是 ToolVersion 概念的例外**。
+
 Built-in Tool 与其他 Tool 一样必须经过 Tool Gateway（见 §5），**不存在“本地快速路径”**。
 
 ### 4.2 MCP
@@ -70,12 +92,14 @@ MCP Server
 ↓
 tools/list
 ↓
-同步 ToolDefinition / ToolVersion
+生成/更新 ToolDefinition
 ↓
-管理员选择哪些 Tool 可以绑定 Agent Version
+生成新的 ToolVersion（schema/checksum 变化时）
+↓
+管理员选择具体 ToolVersion 绑定 Agent Version
 ```
 
-同步只产生“可绑定候选”；ToolBinding 必须由管理员显式操作。
+同步只产生“可绑定候选”；ToolBinding 必须由管理员显式操作，且绑定对象是 exact ToolVersion。MCP sync 不允许静默改变已经 Published Agent Version 的 ToolBinding；历史 ToolVersion 必须保持可查询。
 
 ## 5. 统一执行链
 
@@ -114,7 +138,7 @@ Tool 是统一平台抽象，可来自不同 Provider / Executor：
 | HTTP | 通过 HTTP connector 接入 |
 | (future) | 预留扩展；新增 Provider 不得改变统一执行链 |
 
-Control Plane tool domain 对应实体：ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition（见 CONTROL_PLANE_DOMAINS.md §7）。
+Control Plane tool domain 对应实体：ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition（见 CONTROL_PLANE_DOMAINS.md §7）。ToolDefinition 承载工具身份，ToolVersion 承载不可变执行契约；绑定发生在 exact ToolVersion 级（见 §3.1）。
 
 ## 7. Agent Version Manifest
 
@@ -136,18 +160,19 @@ Control Plane tool domain 对应实体：ToolDefinition / ToolVersion / ToolBind
   ],
 
   "tools": [
-    "builtin.read",
-    "builtin.grep",
-    "builtin.edit",
-    "builtin.write",
-    "builtin.bash",
-    "github.create_pull_request"
+    { "name": "builtin.read", "toolVersionId": "tv_builtin_read_v1" },
+    { "name": "builtin.grep", "toolVersionId": "tv_builtin_grep_v1" },
+    { "name": "builtin.edit", "toolVersionId": "tv_builtin_edit_v1" },
+    { "name": "builtin.write", "toolVersionId": "tv_builtin_write_v1" },
+    { "name": "builtin.bash", "toolVersionId": "tv_builtin_bash_v1" },
+    { "name": "github.create_pull_request", "toolVersionId": "tv_github_create_pr_7" }
   ]
 }
 ```
 
 - `engine.type` 由 Runtime Core 的 AgentEngineRegistry 解析为具体 AgentEngine（见 RUNTIME_CONTRACTS.md §10）。
-- Published Agent Version immutable；manifest 是它的冻结序列化。
+- `tools[]` 中 `name` 只用于展示；`toolVersionId` 才是运行时绑定依据（API / DB 内部使用 ID）。
+- Published Agent Version immutable；manifest 是它的冻结序列化，tools 冻结为 exact ToolVersion。
 - Run 启动后绑定 exact Agent Version，不跟随后续配置改变；运行时引用见 RUNTIME_CONTRACTS.md §2 的 Execution Snapshot。
 
 ## 8. 安全不变量

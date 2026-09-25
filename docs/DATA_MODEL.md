@@ -17,7 +17,7 @@ erDiagram
   AGENT_VERSION }o--|| TOOL_POLICY : uses
   AGENT_VERSION }o--|| BUDGET_POLICY : uses
   AGENT_VERSION ||--o{ TOOL_BINDING : requests
-  TOOL_BINDING }o--|| TOOL_DEFINITION : targets
+  TOOL_BINDING }o--|| TOOL_VERSION : targets
   TOOL_DEFINITION ||--o{ TOOL_VERSION : versions
   MCP_SERVER_DEFINITION ||--o{ TOOL_DEFINITION : exposes
   AGENT_VERSION ||--o{ RUN : executes
@@ -77,13 +77,12 @@ erDiagram
 - name（如 `builtin.read`、`github.create_pull_request`）
 - provider（BUILTIN | MCP | HTTP，预留 future providers）
 - provider_ref（BUILTIN 为空 / mcp_server_id / HTTP connector ref）
-- input_schema_json
 - risk_level
 - capability_tags_json
 - status
 - created_at / updated_at
 
-`builtin.*` Tool 由 Runtime 注册（provider = BUILTIN）；MCP Tool 由 `tools/list` 同步产生（provider = MCP）。
+ToolDefinition 只承载工具身份（identity）；input schema 属于 ToolVersion（不可变执行契约），不在 identity 表上。`builtin.*` Tool 由 Runtime 注册（provider = BUILTIN）；MCP Tool 由 `tools/list` 同步产生（provider = MCP）。
 
 ### tool_version
 - id
@@ -96,10 +95,10 @@ erDiagram
 ### tool_binding
 - id
 - agent_version_id
-- tool_id
+- tool_version_id
 - created_at
 
-唯一约束：`(agent_version_id, tool_id)`。Binding 只表示“可请求”，执行仍需 Policy 决策。
+唯一约束：`(agent_version_id, tool_version_id)`。Binding 绑定 exact ToolVersion，只表示“可请求”，执行仍需 Policy 决策。
 
 ### mcp_server_definition
 - id
@@ -167,9 +166,10 @@ Index：`(workspace_id, created_at desc)`、`(agent_id, created_at desc)`、`sta
 
 ### tool_call
 - id
+- workspace_id
 - run_id
 - step_id
-- tool_definition_id
+- tool_version_id
 - normalized_arguments_json
 - arguments_digest
 - status
@@ -178,7 +178,7 @@ Index：`(workspace_id, created_at desc)`、`(agent_id, created_at desc)`、`sta
 - result_ref / result_summary_json
 - created_at / completed_at
 
-唯一约束建议：`(workspace_id, tool_definition_id, idempotency_key)`。
+唯一约束建议：`(workspace_id, tool_version_id, idempotency_key)`。tool_call 引用 exact ToolVersion，保证历史 Run 可重放与审计一致。
 
 ### policy_decision
 - id
