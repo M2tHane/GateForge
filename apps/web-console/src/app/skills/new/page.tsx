@@ -1,7 +1,7 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { CreateSkillPageView } from "@/features/skills/CreateSkillPageView";
 
 export default function CreateSkillPage() {
-  return <PagePlaceholder title="CreateSkillPage" hint="Create Skill / Clone Skill" />;
+  return <CreateSkillPageView />;
 }
