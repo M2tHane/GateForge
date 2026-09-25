@@ -1,7 +1,7 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { AgentEditorView } from "@/features/agents/AgentEditorView";
 
 export default function AgentEditorPage() {
-  return <PagePlaceholder title="AgentEditorPage" hint="Agent Editor — 草稿编辑与发布" />;
+  return <AgentEditorView />;
 }

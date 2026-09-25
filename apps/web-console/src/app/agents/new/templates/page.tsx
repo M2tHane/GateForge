@@ -1,7 +1,7 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { TemplatePickerView } from "@/features/agents/TemplatePickerView";
 
 export default function TemplatePickerPage() {
-  return <PagePlaceholder title="TemplatePickerPage" hint="Agent Template Picker（平台 / 团队）" />;
+  return <TemplatePickerView />;
 }

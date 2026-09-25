@@ -1,7 +1,7 @@
 "use client";
 
-import { PagePlaceholder } from "@/components/shell/PageHeader";
+import { AgentsPageView } from "@/features/agents/AgentsPageView";
 
 export default function AgentsPage() {
-  return <PagePlaceholder title="AgentsPage" hint="Agents — Personal Agent Card Grid" />;
+  return <AgentsPageView />;
 }

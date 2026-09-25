@@ -169,9 +169,25 @@ describe("agent template clone → publish (Snapshot Copy)", () => {
     useWorkspaceStore.getState().updateDraftAgent(agentId, { name: "Renamed After Publish" });
     expect(useWorkspaceStore.getState().agents[agentId].name).toBe("My Agent");
 
-    // 创建新版本：复制 published manifest 成新 DRAFT
-    useWorkspaceStore.getState().updateDraftAgent(agentId, { name: "v2 Draft" });
-    expect(useWorkspaceStore.getState().agents[agentId].name).toBe("My Agent");
+    // 创建新版本：在同一 Agent 上以 published manifest 快照建 DRAFT（§12）
+    const draftId = useWorkspaceStore.getState().createDraftFromPublished(agentId);
+    expect(draftId).not.toBeNull();
+    const withDraft = useWorkspaceStore.getState().agents[agentId];
+    expect(withDraft.draftVersionId).toBe(draftId);
+    const draft = withDraft.versions.find((v) => v.id === draftId);
+    expect(draft!.status).toBe("DRAFT");
+    expect(draft!.manifest).toEqual(published!.manifest); // snapshot of published
+    // 再次调用不重复建草稿
+    expect(useWorkspaceStore.getState().createDraftFromPublished(agentId)).toBeNull();
+
+    // 从 published draft 发布 → v2.0.0，版本时间线累积在同一 Agent 上
+    useWorkspaceStore.getState().publishAgentDraft(agentId);
+    const v2 = useWorkspaceStore.getState().agents[agentId];
+    expect(v2.versions).toHaveLength(2);
+    expect(v2.versions.every((v) => v.status === "PUBLISHED")).toBe(true);
+    expect(v2.versions[1].version).toBe("v2.0.0");
+    expect(v2.publishedVersionId).toBe(v2.versions[1].id);
+
     vi.useFakeTimers();
     void DAY;
   });

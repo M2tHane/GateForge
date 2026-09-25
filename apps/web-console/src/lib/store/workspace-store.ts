@@ -157,6 +157,8 @@ interface WorkspaceStore {
   // ---- agents ----
   cloneAgentTemplate: (sourceTemplateVersionId: string) => { agentId: string; draftVersionId: string } | null;
   createBlankAgentDraft: () => { agentId: string; draftVersionId: string };
+  /** 已发布 Agent → 同一 Agent 上的新 DRAFT（Clone published manifest；§12 版本时间线） */
+  createDraftFromPublished: (agentId: string) => string | null;
   updateDraftAgent: (
     agentId: string,
     patch: Partial<Pick<Agent, "name" | "description" | "avatarEmoji" | "avatarColor">> & {
@@ -810,6 +812,26 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             };
           });
           return { agentId, draftVersionId };
+        },
+        createDraftFromPublished: (agentId) => {
+          let draftId: string | null = null;
+          mutate((s) => {
+            const agent = s.agents[agentId];
+            const published = agent?.versions.find((v) => v.id === agent.publishedVersionId);
+            if (!agent || !published || agent.draftVersionId !== null) return; // 已有草稿时不重复建
+            const draftVersionId = nid("av");
+            agent.versions.push({
+              id: draftVersionId,
+              version: "Draft",
+              status: "DRAFT",
+              manifest: structuredClone(published.manifest), // Clone Draft from Published
+              createdAt: nowIso(),
+            });
+            agent.draftVersionId = draftVersionId;
+            agent.updatedAt = nowIso();
+            draftId = draftVersionId;
+          });
+          return draftId;
         },
         updateDraftAgent: (agentId, patch) =>
           mutate((s) => {
