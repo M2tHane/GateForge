@@ -16,6 +16,10 @@ erDiagram
   AGENT_VERSION }o--|| MODEL_POLICY : uses
   AGENT_VERSION }o--|| TOOL_POLICY : uses
   AGENT_VERSION }o--|| BUDGET_POLICY : uses
+  AGENT_VERSION ||--o{ TOOL_BINDING : requests
+  TOOL_BINDING }o--|| TOOL_DEFINITION : targets
+  TOOL_DEFINITION ||--o{ TOOL_VERSION : versions
+  MCP_SERVER_DEFINITION ||--o{ TOOL_DEFINITION : exposes
   AGENT_VERSION ||--o{ RUN : executes
   RUN ||--o{ RUN_EVENT : emits
   RUN ||--o{ TOOL_CALL : has
@@ -47,9 +51,10 @@ erDiagram
 - agent_id
 - version_number
 - state
-- instructions
-- runtime_profile_json
+- manifest_json（Agent Version Manifest：engine / modelPolicy / skills / tools，见 AGENT_CAPABILITY_MODEL.md §7）
+- engine_json（engine.type + config，冗余存储用于查询）
 - model_policy_id
+- skills_json
 - tool_policy_id
 - budget_policy_id
 - approval_policy_id
@@ -69,12 +74,41 @@ erDiagram
 ### tool_definition
 - id
 - workspace_id
-- name
-- protocol
+- name（如 `builtin.read`、`github.create_pull_request`）
+- provider（BUILTIN | MCP | HTTP，预留 future providers）
+- provider_ref（BUILTIN 为空 / mcp_server_id / HTTP connector ref）
 - input_schema_json
 - risk_level
-- connector_ref
+- capability_tags_json
 - status
+- created_at / updated_at
+
+`builtin.*` Tool 由 Runtime 注册（provider = BUILTIN）；MCP Tool 由 `tools/list` 同步产生（provider = MCP）。
+
+### tool_version
+- id
+- tool_definition_id
+- version
+- input_schema_json
+- checksum
+- created_at
+
+### tool_binding
+- id
+- agent_version_id
+- tool_id
+- created_at
+
+唯一约束：`(agent_version_id, tool_id)`。Binding 只表示“可请求”，执行仍需 Policy 决策。
+
+### mcp_server_definition
+- id
+- workspace_id
+- name
+- transport_json（stdio command / http url）
+- credential_ref
+- status
+- last_synced_at
 
 ### tool_policy
 - id

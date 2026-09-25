@@ -2,7 +2,7 @@
 
 ## 1. 架构结论
 
-v1 使用：**模块化单体 Control Plane + 独立 Agent Runtime + 逻辑三网关 + 共享基础设施**。
+v1 使用：**模块化单体 Control Plane + 独立 Agent Runtime（TypeScript Runtime Core + 可插拔 Agent Engine）+ 逻辑三网关 + 共享基础设施**。
 
 不要在 MVP 阶段拆成十几个微服务。先稳定边界与契约，再按负载、团队和安全边界拆分。
 
@@ -19,7 +19,7 @@ flowchart TB
   RT --> TG[Tool Gateway / PEP]
 
   MG --> LLM[OpenAI / Anthropic / Private Models]
-  TG --> TOOLS[MCP / GitHub / Shell / DB / SaaS]
+  TG --> TOOLS[BUILTIN / MCP / HTTP Tools]
 
   RT --> PG[(PostgreSQL)]
   CP --> PG
@@ -40,7 +40,7 @@ flowchart TB
 - Workspace / Identity / Membership
 - Agent Registry / Version
 - Model Policy
-- Tool Registry / Tool Policy
+- Tool Registry / Tool Provider / Tool Policy
 - Policy Decision
 - Budget
 - Approval
@@ -52,7 +52,7 @@ flowchart TB
 - Ingress enforcement
 - Session / Run
 - Context
-- Agent Loop
+- Agent Loop（由 AgentEngine 提供，framework-specific）
 - Workflow / DAG
 - Model Call
 - Tool Call
@@ -77,19 +77,20 @@ MVP 可以作为 Spring Boot Control Plane 的 API 入口模块实现；未来�
 - Timeout / Retry / Fallback
 - Usage metering
 
-重要：业务 Agent 代码不得直接调用 Provider SDK。
+重要：业务 Agent 代码与 AgentEngine 都不得直接调用 Provider SDK；Model Call 由 Runtime Core 经 Model Gateway 执行。
 
 ### 3.3 Tool Gateway
 职责：
-- Tool lookup
+- Tool lookup（ToolDefinition / ToolVersion）
 - schema validation
 - scope check
 - policy enforcement
 - approval binding
+- executor dispatch（BUILTIN / MCP / HTTP）
 - timeout / retry policy
 - execution audit
 
-所有会产生外部副作用的工具优先纳入 Tool Gateway。
+所有 Tool——Built-in Tool 与 MCP Tool——都必须经过 Tool Gateway；所有会产生外部副作用的工具优先纳入 Tool Gateway。
 
 ## 4. PDP / PEP
 
@@ -120,20 +121,43 @@ PDP 负责“决定”；PEP 负责“不可绕过地执行决定”。
 
 Control Plane 内部按领域模块组织，而不是物理微服务。
 
-Agent Runtime 内部建议：
+### 5.1 Agent Runtime：Runtime Core + 可插拔 Agent Engine
+
+Agent Runtime 使用 **TypeScript Runtime Core + Pluggable Agent Engine Architecture**。Runtime Core 不依赖任何具体 Agent Framework。
+
+```text
+Runtime Core
+↓
+AgentEngineRegistry
+↓
+AgentEngine
+├── PiEngine          # MVP 默认实现
+├── LangGraphEngine   # future
+└── NativeEngine      # future
+```
+
+Runtime Core 拥有：Run、Session、Agent Version Snapshot、State Machine、Checkpoint metadata、Tool Gateway、Model Gateway、Policy enforcement integration、Approval integration、Budget、Audit / Runtime Events。
+
+AgentEngine 只负责 framework-specific 部分：Agent Loop、Context execution、Prompt execution、framework state、Tool Call / Model Call 生成。**Pi 只是 AgentEngine 的第一种实现，不是 Runtime Core 本身。**
+
+Runtime 内部目录：
 
 ```text
 runtime/
-├── session
-├── run
-├── context
-├── workflow
-├── executor
-├── checkpoint
-├── model-gateway
-├── tool-gateway
-└── event-stream
+├── core/
+│   ├── session
+│   ├── run
+│   ├── state-machine
+│   ├── checkpoint
+│   ├── model-gateway
+│   ├── tool-gateway
+│   └── event-stream
+└── engines/
+    ├── registry        # AgentEngineRegistry
+    └── pi/             # PiEngine（唯一允许依赖 Pi SDK 的模块）
 ```
+
+接口定义见 RUNTIME_CONTRACTS.md §10；能力组成见 AGENT_CAPABILITY_MODEL.md。
 
 ## 6. 受控状态迁移
 
@@ -164,27 +188,31 @@ Runtime 不允许任意写 `status`；必须调用状态机命令，例如：
 
 ```mermaid
 sequenceDiagram
-  participant A as Agent Executor
+  participant A as AgentEngine
+  participant C as Runtime Core
   participant TG as Tool Gateway / PEP
   participant P as Policy Service / PDP
   participant AP as Approval Service
-  participant T as Tool Adapter
+  participant T as Tool Executor (BUILTIN / MCP / HTTP)
 
-  A->>TG: invoke(tool, args, runIdentity)
+  A->>C: ToolRequest(tool, args)
+  C->>TG: invoke(tool, args, runIdentity)
   TG->>P: decide(subject, action, resource, context)
   P-->>TG: REQUIRE_APPROVAL
   TG->>AP: createApproval(requestDigest)
-  TG-->>A: WAITING_APPROVAL
-  Note over A: checkpoint + suspend
+  TG-->>C: WAITING_APPROVAL
+  Note over C: checkpoint + suspend
   AP-->>TG: approved by authorized user
-  A->>TG: resume(invokeRequestId)
+  A->>C: resume
+  C->>TG: resume(invokeRequestId)
   TG->>AP: validate approved request digest
   TG->>T: execute exact approved call
   T-->>TG: result
-  TG-->>A: observation
+  TG-->>C: observation
+  C-->>A: observation
 ```
 
-审批绑定的是**确切 Action Request**，而不是泛化的“这个 Agent 已获批准”。如果参数变化，必须重新决策。
+审批绑定的是**确切 Action Request**，而不是泛化的“这个 Agent 已获批准”。如果参数变化，必须重新决策。Built-in Tool 与 MCP Tool 走完全相同的链路。
 
 ## 8. 数据一致性
 
@@ -229,8 +257,10 @@ MVP 不要求 Kafka。先用 Postgres Outbox + worker。
 - Tool credentials 只存在于 Tool Gateway / Connector secret storage。
 - Runtime 获取的是 credential reference，而不是 secret 明文。
 - Approval token 不进入 Prompt。
-- Policy evaluation input 中不接受 Agent 自报角色作为可信身份。
+- Prompt 中 `approval=true`、`admin=true` 等内容没有任何授权意义；Policy evaluation input 中不接受 Agent 自报角色作为可信身份。
 - 每次 Tool Call 使用服务器注入的 `agentId/userId/workspaceId/runId/versionId`。
+- Agent 永远只能请求动作；Built-in Tool 与 MCP Tool 都必须经过 Tool Gateway（见 AGENT_CAPABILITY_MODEL.md §5、§8）。
+- bash 不能成为权限逃生通道：若 `git.push` 需要 REQUIRE_APPROVAL，则不能通过 `bash("git push ...")` 绕开审批。shell executor 至少受 workspace sandbox、command policy、filesystem scope、network policy、environment / secret isolation 控制。
 
 ## 11. 未来拆分条件
 

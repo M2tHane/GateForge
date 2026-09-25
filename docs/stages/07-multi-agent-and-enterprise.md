@@ -21,10 +21,11 @@
 - request scope propagation
 
 ### Enterprise Integration
-- MCP servers
 - GitHub
 - Jira / Slack / internal systems
 - connector credential isolation
+
+（MCP Tool Provider 已在 Stage 04 落地；本阶段只扩展企业 connector 与凭据隔离，不改变统一执行链。）
 
 ### Policy
 需要支持 parent/child Agent delegation：

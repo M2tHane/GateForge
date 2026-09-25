@@ -16,9 +16,9 @@ com.example.agentplatform.controlplane
 Control Plane
 ├── workspace        租户/工作空间边界
 ├── identity         用户、服务身份、成员关系
-├── agent            Agent Definition / Version
+├── agent            Agent Definition / Version（Agent Capability Model）
 ├── model            Model Catalog / Model Policy
-├── tool             Tool Registry / Tool Binding
+├── tool             Tool Registry / Tool Provider / Tool Binding
 ├── policy           PDP / Policy Rule / Decision
 ├── approval         Human Approval
 ├── budget           Token / Cost 限额
@@ -73,11 +73,12 @@ Agent
 ├── status
 └── currentPublishedVersionId
 
-AgentVersion
+AgentVersion（Agent Capability Model，见 docs/AGENT_CAPABILITY_MODEL.md）
 ├── versionNumber
-├── instructions
-├── runtimeProfile
+├── engine: { type, config }       # 经 AgentEngineRegistry 解析（如 pi）
 ├── modelPolicyId
+├── skills                         # Prompt / Instructions / Reference，无执行权限
+├── toolBindings                   # 可请求哪些 Tool（builtin.* / MCP / HTTP）
 ├── toolPolicyId
 ├── budgetPolicyId
 ├── approvalPolicyId
@@ -86,9 +87,10 @@ AgentVersion
 ```
 
 规则：
-- Published Version immutable。
+- Published Version immutable；Agent Version Manifest（docs/AGENT_CAPABILITY_MODEL.md §7）是其冻结序列化。
 - 修改 published 配置 → clone draft → publish new version。
-- Runtime 只能通过 Published Version 启动正式 Run。
+- Runtime 只能通过 Published Version 启动正式 Run；Run 启动后绑定 exact Agent Version，不跟随后续配置改变。
+- ToolBinding 只表示“可以请求哪些 Tool”，不等于授权；真正执行时仍必须经过 Policy 决策。
 
 ## 6. model Domain
 
@@ -115,22 +117,49 @@ Runtime 调用 Model Gateway 时只提交 logical model policy reference。
 
 ## 7. tool Domain
 
-职责：工具元数据与 Agent 工具授权配置。
+职责：统一 Tool 平台抽象与 Agent 工具授权配置。Tool 可以来自不同 Provider / Executor。
 
 实体：
 - ToolDefinition
 - ToolVersion
 - ToolBinding
 - ToolPolicy
+- McpServerDefinition
 
 ToolDefinition 包含：
-- name
-- protocol: MCP / HTTP / LOCAL
+- name（如 `builtin.read`、`github.create_pull_request`）
+- provider: BUILTIN | MCP | HTTP（预留 future providers）
+- providerRef（BUILTIN 为空 / mcpServerId / HTTP connector ref）
 - inputSchema
 - riskLevel
 - capability tags
 
-ToolBinding 表示 Agent Version “可以请求哪些工具”，但最终仍需 Policy 决策。
+ToolVersion 记录 Tool 的 schema 版本与 checksum；MCP Tool 随 `tools/list` 同步产生新版本。
+
+Built-in Tools 由 Runtime 注册：
+
+```text
+builtin.read
+builtin.glob
+builtin.grep
+builtin.edit
+builtin.write
+builtin.bash
+```
+
+MCP Server 接入流程：
+
+```text
+MCP Server
+↓
+tools/list
+↓
+同步 ToolDefinition / ToolVersion
+↓
+管理员选择哪些 Tool 可以绑定 Agent Version
+```
+
+ToolBinding 表示 Agent Version “可以请求哪些工具”，但最终仍需 Policy 决策。Built-in Tool 与 MCP Tool 都必须经过 Tool Gateway 统一执行链（见 docs/AGENT_CAPABILITY_MODEL.md §5）。
 
 ## 8. policy Domain
 
@@ -162,6 +191,8 @@ Decision 必须携带：
 - expiresAt（可选）
 
 v1 先用 Java 结构化规则；Domain API 保持稳定，后续替换 OPA/Cedar 不影响 Runtime。
+
+Policy input 中不接受 Agent 自报身份或 Prompt 声明（如 `approval=true`）作为可信输入。
 
 ## 9. approval Domain
 

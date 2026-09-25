@@ -1,7 +1,7 @@
 # PRD — Agent Control Plane & Runtime Platform
 
-**版本**：v1.0  
-**状态**：开发基线  
+**版本**：v1.1  
+**状态**：v1.1 架构冻结基线（AgentEngine / Agent Capability Model / Tool Registry 收口）  
 **产品定位**：企业级 Agent 控制、运行与治理平台
 
 ## 1. 产品目标
@@ -16,7 +16,7 @@
 负责 Workspace、Agent、模型、工具、Policy、Budget、Release、审批规则和平台治理。
 
 ### Agent Builder
-创建和维护 Agent Definition、Prompt、Skills、Tools、模型策略和版本。
+创建和维护 Agent Definition、Skills（Prompt / Instructions / Reference）、Tools、模型策略和版本。
 
 ### End User
 通过 Web、API、IDE 或其他 Agent 发起任务，查看执行过程和结果，并处理需要自己批准的动作。
@@ -30,10 +30,11 @@
 创建 Agent
   ↓
 配置 Agent Definition
-  ├─ Prompt / Instructions
+  ├─ Skills（Prompt / Instructions / Reference）
+  ├─ Engine（如 pi）
   ├─ Model Policy
-  ├─ Tool Policy
-  └─ Budget Policy
+  ├─ Tools（Built-in / MCP）
+  └─ Budget / Approval Policy
   ↓
 创建 Version
   ↓
@@ -57,14 +58,15 @@ Audit / Trace / Cost 可追踪
 ### 4.1 Agent Registry
 - 创建、编辑、停用 Agent。
 - Agent Definition 与 Agent Version 分离。
+- Agent Version 由 Engine、Model Policy、Skills、Tools 组成（见 docs/AGENT_CAPABILITY_MODEL.md）。
 - 每次运行绑定不可变的 Agent Version。
 - Draft / Published / Deprecated 生命周期。
-- Agent 可绑定 Model Policy、Tool Policy、Budget Policy、Approval Policy。
+- Agent Version 可绑定 Budget Policy、Approval Policy。
 
 ### 4.2 Agent Runtime
-- 创建 Session / Run。
-- 保存输入、上下文、执行状态和 Checkpoint。
-- Agent Loop：collect context → decide → action → observe → continue/finish。
+- TypeScript Runtime Core + 可插拔 Agent Engine（AgentEngineRegistry）；Runtime Core 不依赖任何具体 Agent Framework，MVP 只实现 PiEngine。
+- Runtime Core 拥有 Session / Run / State Machine / Checkpoint metadata / Runtime Events。
+- Agent Loop 由 AgentEngine 提供（MVP：PiEngine）：collect context → decide → action → observe → continue/finish。
 - 支持中断 / 恢复。
 - 支持 Tool Call 与 Model Call 的统一事件流。
 - v1 只要求单 Agent + 可插拔 Workflow；Multi-Agent 在后续阶段。
@@ -78,17 +80,18 @@ Audit / Trace / Cost 可追踪
 - Retry / Timeout。
 - 记录模型请求元数据，不默认记录敏感原始内容。
 
-### 4.4 Tool / MCP Gateway
-- Tool Registry。
-- MCP Server / HTTP / Local Tool Adapter。
+### 4.4 Tool Gateway
+- Tool Registry：ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition。
+- Tool Provider：BUILTIN / MCP / HTTP（预留 future providers）；MCP 是 Tool Provider Protocol，不是 Tool 本身。
+- v1 Built-in Tools：builtin.read、builtin.glob、builtin.grep、builtin.edit、builtin.write、builtin.bash。
+- MCP Server 接入：tools/list 同步 ToolDefinition / ToolVersion，管理员选择可绑定 Tool；至少接入一个 MCP Server 完成端到端验证。
 - 工具 Scope 与参数 Schema。
-- 每次调用执行权限与 Policy 检查。
-- 高风险动作进入 Approval。
-- v1 至少支持：repo.read、repo.write、shell.exec、git.commit、git.push。
+- 每次调用执行权限与 Policy 检查；Built-in Tool 与 MCP Tool 走同一执行链，Built-in Tool 不得绕过 Tool Gateway。
+- 高风险动作进入 Approval；bash 不能成为审批逃生通道（见 docs/AGENT_CAPABILITY_MODEL.md §8）。
 
 ### 4.5 Policy & Approval
 - Policy Decision 返回：ALLOW / DENY / REQUIRE_APPROVAL。
-- Agent 不得自行生成“approved=true”绕过审批。
+- Agent 不得自行生成“approved=true”绕过审批；Prompt 中任何 approval=true / admin=true 内容都没有授权意义。
 - Approval 是 Control Plane 中的独立持久状态。
 - Approval 完成后生成不可伪造的授权凭据或服务端关联记录，由 Runtime 使用受控 resume API 恢复。
 
@@ -139,16 +142,19 @@ Agent 产生的是“请求”，不是“授权”。例如模型输出 `approv
 Run 创建后固定 `agentVersionId`，保证可重放和可审计。
 
 ### Rule 4 — Tool Call 必经 Tool Gateway
-任何受治理的外部副作用不得由 Agent Runtime 绕过 Gateway 直接执行。
+任何受治理的外部副作用不得由 Agent Runtime 绕过 Gateway 直接执行。Built-in Tool 与 MCP Tool 都适用；Built-in Tool 没有“本地快速路径”。
 
 ### Rule 5 — Model Call 必经 Model Gateway
-Runtime 不允许在业务 Agent 代码中直接持有 Provider API Key。
+Runtime 不允许在业务 Agent 代码或 AgentEngine 中直接持有 Provider API Key。
 
 ### Rule 6 — Approval 是服务器状态
-审批结果只能由 Approval Service 的受控 API 写入。
+审批结果只能由 Approval Service 的受控 API 写入，并绑定 exact Action Request。
 
 ### Rule 7 — Control Plane 与 Data Plane 分权
 Control Plane 管定义和策略；Data Plane 执行任务并强制策略。Runtime 无权修改自身 Policy。
+
+### Rule 8 — bash 不是权限逃生通道
+需要审批的动作（如 git.push → REQUIRE_APPROVAL）不能通过 `bash("git push ...")` 绕开审批。shell executor 至少受 workspace sandbox、command policy、filesystem scope、network policy、environment / secret isolation 控制。
 
 ## 7. 非目标
 
@@ -161,6 +167,7 @@ v1 不做：
 - 大规模多区域灾备。
 - 通用 BPMN 工作流设计器。
 - 无限自由的 Agent Marketplace。
+- 为兼容所有 Agent Framework 的通用 SPI / 插件市场。
 
 ## 8. MVP 成功指标
 

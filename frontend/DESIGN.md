@@ -144,8 +144,8 @@ Fix and maintain repositories
 Tabs：
 
 ### Overview
-左侧：Agent Description / Runtime Profile  
-右侧：Model Policy / Tool Policy / Budget / Approval summary
+左侧：Agent Description / Engine（如 pi）  
+右侧：Model Policy / Skills / Tools / Budget / Approval summary
 
 ### Versions
 版本时间线 / 表格：Draft / Published / Deprecated。
@@ -164,16 +164,17 @@ Tabs：
 
 ```text
 ┌──────────────────────┬─────────────────────────┐
-│ Agent Instructions   │ Effective Configuration │
-│                      │ Model Policy             │
-│ Markdown/textarea    │ Tool Policy              │
-│                      │ Budget                   │
-│                      │ Approval                 │
+│ Instructions / Skills │ Effective Configuration │
+│ (Prompt / Reference)  │ Engine (如 pi)           │
+│                       │ Model Policy             │
+│ Markdown/textarea     │ Skills                   │
+│                       │ Tools (Built-in / MCP)   │
+│                       │ Budget / Approval        │
 └──────────────────────┴─────────────────────────┘
                            [Save Draft] [Publish]
 ```
 
-不要做复杂低代码画布。v1 的核心是可靠版本化，不是视觉编排。
+Version 编辑的内容即 Agent Version Manifest（docs/AGENT_CAPABILITY_MODEL.md §7）；发布后只读。不要做复杂低代码画布。v1 的核心是可靠版本化，不是视觉编排。
 
 ## 10. Runs List
 
@@ -259,19 +260,19 @@ Policy: production-write-approval
 
 Tool List：
 - Name
-- Protocol
+- Provider（BUILTIN / MCP / HTTP）
 - Risk Level
 - Used By Agents
 - Status
 
 Tool Detail：
 - Input Schema
-- Connector
+- Provider / Executor
 - Default Risk
 - Policy references
 - Recent Calls
 
-Secret 只显示“已配置/未配置”，永不回显。
+`builtin.*` 由 Runtime 注册；MCP Tool 由 MCP Server sync 产生（`tools/list` → 同步 → 管理员选择可绑定项）。Secret 只显示“已配置/未配置”，永不回显。
 
 ## 14. Models
 

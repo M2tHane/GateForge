@@ -13,13 +13,13 @@
 - release
 - audit 基础设施
 
-只建立 model/tool/budget/policy 的接口占位，不做完整执行。
+只建立 model/tool/budget/policy 的接口占位，不做完整执行；tool 域先落 ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition 的 schema 占位。
 
 ## 核心功能
 
 - Workspace 创建。
 - Agent CRUD。
-- Draft Agent Version。
+- Draft Agent Version（携带 Agent Version Manifest：engine / modelPolicy / skills / tools，见 docs/AGENT_CAPABILITY_MODEL.md §7）。
 - Publish Version，发布后不可变。
 - Active Version。
 - Rollback。

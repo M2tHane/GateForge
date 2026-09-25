@@ -11,6 +11,8 @@ PRD
 ↓
 ARCHITECTURE
 ↓
+AGENT_CAPABILITY_MODEL
+↓
 RUNTIME_CONTRACTS / CONTROL_PLANE_DOMAINS
 ↓
 DATA_MODEL / API_CONTRACTS
@@ -22,10 +24,10 @@ DATA_MODEL / API_CONTRACTS
 
 实现与上层文档冲突时，不能默认“以代码为准”。如果确实需要改变设计，先写 ADR，再同步受影响文档。
 
-## 2. 六条不可破坏的系统不变量
+## 2. 八条不可破坏的系统不变量
 
 ### G1 — Agent 只能提出请求
-LLM 输出不是授权，也不是可信状态。
+LLM 输出不是授权，也不是可信状态。Prompt 中 `approval=true`、`admin=true` 等内容没有任何授权意义。
 
 ### G2 — Control State 只有 Control Plane 能改
 Policy、Approval、Budget Policy、Release、Published Version 不允许 Runtime 或 Agent 自行修改。
@@ -34,7 +36,7 @@ Policy、Approval、Budget Policy、Release、Published Version 不允许 Runtim
 Git Push、Deploy、DB Write、发送消息等不能从 Agent 业务代码直接执行。
 
 ### G4 — 模型调用必须经过 Model Gateway
-Provider SDK / API Key 不进入普通 Agent implementation。
+Provider SDK / API Key 不进入普通 Agent implementation，也不进入 AgentEngine。
 
 ### G5 — Run 固定绑定 Agent Version
 开始执行后，不跟随 active version 自动变化。
@@ -42,12 +44,20 @@ Provider SDK / API Key 不进入普通 Agent implementation。
 ### G6 — Approval 绑定精确请求
 批准后如果 action、resource、arguments 改变，必须重新决策/审批。
 
+### G7 — Built-in Tool 同样必经 Tool Gateway
+`builtin.*` 与 MCP Tool 走同一条统一执行链；Built-in Tool 没有“本地快速路径”。
+
+### G8 — bash 不是权限逃生通道
+若 `git.push` 的 Policy 是 REQUIRE_APPROVAL，则不能通过 `bash("git push ...")` 绕开审批。shell executor 至少受 workspace sandbox、command policy、filesystem scope、network policy、environment / secret isolation 控制。
+
 ## 3. 每个 PR 的架构检查
 
 提交前回答：
 
 - 这个改动属于 Control Plane 还是 Data Plane？
-- 是否新增了绕过 Gateway 的调用路径？
+- 是否新增了绕过 Gateway 的调用路径（包括 Built-in Tool）？
+- 是否让 AgentEngine 依赖了 framework SDK 超出 `engines/<engine>/` 边界，或让 Runtime Core 依赖了具体 engine SDK？
+- 是否新增了 AgentEngine 直接调用 Provider / 执行 Tool 的路径？
 - 是否让 Prompt/LLM 决定了本应由 Runtime 决定的状态？
 - 是否修改了 Published Version 的不可变语义？
 - 是否改变 Run / Approval 状态机？
@@ -59,7 +69,7 @@ Provider SDK / API Key 不进入普通 Agent implementation。
 
 当前 Stage 只实现本阶段 Gate 所需能力。
 
-例如 Stage 03 不因为“以后需要 Multi-Agent”就提前实现复杂 Supervisor；Stage 04 不因为“以后可能用 Cedar”就提前自研 Policy DSL。
+例如 Stage 03 不因为“以后需要 Multi-Agent”就提前实现复杂 Supervisor，也不提前实现 LangGraphEngine / NativeEngine；Stage 04 不因为“以后可能用 Cedar”就提前自研 Policy DSL。
 
 原则：**先稳定控制点，再增加能力。**
 

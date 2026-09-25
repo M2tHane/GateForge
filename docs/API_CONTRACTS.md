@@ -22,6 +22,8 @@ POST   /api/agent-versions/{versionId}:publish
 POST   /api/agent-versions/{versionId}:deprecate
 ```
 
+创建 / 修改 Version 的 payload 携带 Agent Version Manifest（engine / modelPolicy / skills / tools，见 docs/AGENT_CAPABILITY_MODEL.md §7），以及 budgetPolicyId / approvalPolicyId。
+
 禁止 `PATCH published AgentVersion`。
 
 ## 3. Release
@@ -58,17 +60,27 @@ Approve body 可以包含 comment，但不能修改原始 tool arguments。
 
 ## 6. Tools
 
+Tool 列表包含 `builtin.*`（由 Runtime 注册，provider = BUILTIN）与 MCP / HTTP Provider 的 Tool。
+
 ```text
-POST /api/tools
+POST /api/tools                      # 仅用于注册 HTTP provider Tool
 GET  /api/tools
 GET  /api/tools/{toolId}
-PATCH /api/tools/{toolId}
+PATCH /api/tools/{toolId}            # 不允许修改 builtin.* / MCP 同步的 schema
 POST /api/tools/{toolId}:disable
+
+POST /api/mcp-servers
+GET  /api/mcp-servers
+GET  /api/mcp-servers/{id}
+POST /api/mcp-servers/{id}:sync      # tools/list → 同步 ToolDefinition / ToolVersion
+POST /api/mcp-servers/{id}:disable
 
 POST /api/tool-policies
 GET  /api/tool-policies/{id}
 PATCH /api/tool-policies/{id}
 ```
+
+MCP sync 只同步定义与版本，产生“可绑定候选”；管理员必须显式选择哪些 MCP Tool 可以绑定到 Agent Version（ToolBinding）。绑定不等于授权，执行仍需 Policy 决策。
 
 ## 7. Models
 

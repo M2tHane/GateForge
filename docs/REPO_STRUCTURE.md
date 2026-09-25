@@ -3,12 +3,12 @@
 推荐先使用 Monorepo，方便前后端和 Runtime 共享契约，但保持部署单元独立。
 
 ```text
-agent-platform/
+gateforge/
 ├── apps/
 │   └── web-console/                  # Next.js
 ├── services/
 │   ├── control-plane/                # Spring Boot
-│   └── agent-runtime/                # TypeScript / Pi adapter
+│   └── agent-runtime/                # TypeScript Runtime Core + Agent Engines
 ├── packages/
 │   ├── api-contracts/                # OpenAPI generated types / schemas
 │   ├── event-contracts/              # runtime event schemas
@@ -16,12 +16,14 @@ agent-platform/
 ├── docs/
 │   ├── PRD.md
 │   ├── ARCHITECTURE.md
+│   ├── AGENT_CAPABILITY_MODEL.md
 │   ├── CONTROL_PLANE_DOMAINS.md
 │   ├── RUNTIME_CONTRACTS.md
 │   ├── DATA_MODEL.md
 │   ├── API_CONTRACTS.md
 │   ├── ADR/
 │   └── stages/
+├── frontend/                         # 设计基线（DESIGN.md / theme.css）
 ├── infra/
 │   ├── docker-compose.yml
 │   ├── postgres/
@@ -64,22 +66,29 @@ infrastructure/
 
 ```text
 services/agent-runtime/src/
-├── core/
+├── core/                             # Runtime Core：禁止 import 任何 engine SDK
 │   ├── session/
 │   ├── run/
-│   ├── context/
+│   ├── state-machine/
 │   ├── checkpoint/
-│   └── workflow/
-├── harness/
-│   ├── port.ts
-│   └── pi/
+│   └── events/
+├── engines/
+│   ├── agent-engine.ts               # AgentEngine interface + EngineCapabilities
+│   ├── registry.ts                   # AgentEngineRegistry
+│   └── pi/                           # PiEngine（MVP 唯一实现；唯一允许 import Pi SDK 的模块）
 ├── gateways/
 │   ├── model/
 │   └── tool/
+│       ├── registry/                 # Built-in Tool Registry + MCP Tool 缓存
+│       └── executors/
+│           ├── builtin/              # read / glob / grep / edit / write / bash
+│           └── mcp/
 ├── control-plane-client/
 ├── events/
 └── server/
 ```
+
+依赖规则：只有 `engines/pi/` 允许依赖 Pi SDK；`core/`、`gateways/` 等模块只能依赖 `engines/agent-engine.ts` 中的接口（见 RUNTIME_CONTRACTS.md §10）。
 
 ## 关键约束
 

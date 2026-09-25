@@ -29,14 +29,15 @@ Tool Gateway：
 3. 重放已使用 approval → 不重复副作用。
 4. 未授权用户 approve → 403。
 5. Approval expired → 不能 resume。
+6. 用 `bash("git push ...")` 绕过 `git.push` 审批 → 被 command policy 拦截（G8）。
 
 ## Gate
 
 完整 Demo 必须跑通：
 
 ```text
-repo.write → ALLOW
-shell.test → ALLOW
+builtin.write → ALLOW
+builtin.bash (run tests) → ALLOW
 git.push → REQUIRE_APPROVAL
 → Run WAITING_APPROVAL
 → User Approve
