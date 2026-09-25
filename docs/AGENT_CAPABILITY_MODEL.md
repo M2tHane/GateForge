@@ -1,6 +1,6 @@
 # Agent Capability Model
 
-本文档正式定义 GateForge 中 Agent Version 的能力组成、Skill 与 Tool 的边界、Tool Provider 模型和统一执行链。它是 Agent Definition / Agent Version / Tool Registry 相关实现的契约来源，与 PRD、ARCHITECTURE、RUNTIME_CONTRACTS、CONTROL_PLANE_DOMAINS 保持一致；发生冲突时按 DEVELOPMENT_GUARDRAILS 的 Source of Truth 顺序处理。
+本文档正式定义 GateForge 中 Agent Version 的能力组成、Skill 与 Tool 的边界、Tool Provider 模型和统一执行链。它是 Agent Definition / Agent Version / Tool Registry 相关实现的契约来源，与 PRD、ARCHITECTURE、USER_AND_RESOURCE_MODEL、RUNTIME_CONTRACTS、CONTROL_PLANE_DOMAINS 保持一致；发生冲突时按 DEVELOPMENT_GUARDRAILS 的 Source of Truth 顺序处理。
 
 ## 1. Agent Version 组成
 
@@ -8,7 +8,7 @@
 Agent Version
 ├── Engine            # 用哪个 AgentEngine 执行（如 pi）
 ├── Model Policy      # 经 Model Gateway 的模型路由与限额策略
-├── Skills            # Prompt / Instructions / Reference
+├── Skills            # Prompt / Instructions / Reference（exact SkillVersion）
 └── Tools             # Agent 可以请求执行的能力
     ├── Built-in Tools
     └── MCP Tools
@@ -20,16 +20,40 @@ Agent Version
 - Run 启动后绑定 exact Agent Version，不跟随后续配置改变。
 - Tools 只表示“允许请求”，不表示“允许执行”；真正执行与否由 Policy 决定。
 - Tools 绑定到 **exact ToolVersion**；Agent Version 发布时冻结（见 §3、§7）。
+- Skills 同样绑定到 **exact SkillVersion**（AgentSkillBinding，见 §2、§7）；发布后 Skill 内容不漂移。
+- Agent 本身区分 `kind = PERSONAL | TEMPLATE` 与 `scope = WORKSPACE | TEAM | PERSONAL`（Personal Agent / Agent Template 的归属与 Clone 语义见 USER_AND_RESOURCE_MODEL.md §5）；Version 组成对两者一致。
 
 ## 2. Skill
 
 ```text
-Skill = Prompt / Instructions / Reference
+Skill = Prompt / Instructions / Reference（v1.2 起为正式一级资源）
 ```
 
 - Skill 告诉 Agent **应该怎么做**：工作方式、领域知识、输出规范、参考文档。
 - Skill **本身没有执行权限**：它不能发起 Tool Call，也不能改变 Policy、Approval、Budget、Release 等控制状态。
 - Skill 的效果只能通过 Agent 发出的 Action Request 体现，而每个 Action Request 都必须经过 Runtime Core / Tool Gateway / Policy（见 §5）。
+
+### 2.1 SkillDefinition / SkillVersion / AgentSkillBinding
+
+v1.2 起 Skill 是独立资源（完整 Ownership / Scope / Category / Clone / Enablement 定义见 USER_AND_RESOURCE_MODEL.md §6）：
+
+```text
+Skill           = Skill identity（身份 + scope + category + ownership）
+↓
+SkillVersion    = immutable instructions / reference contract
+↓
+AgentSkillBinding = Agent Version 对 exact SkillVersion 的绑定
+```
+
+| 概念 | 职责 | 包含 |
+|---|---|---|
+| Skill | Skill identity | name、scope（WORKSPACE / TEAM / PERSONAL）、categoryId、ownership、enablement |
+| SkillVersion | immutable instructions contract | instructions、references、version/checksum、state（DRAFT / PUBLISHED / DEPRECATED） |
+| AgentSkillBinding | AgentVersion → exact SkillVersion | 发布时冻结；`name` 仅展示，`skillVersionId` 才是绑定依据 |
+
+- 与 ToolDefinition / ToolVersion / ToolBinding 保持类似的可重放思想，但 **Skill ≠ Tool，两者不是同一种能力**：Tool 走统一执行链并获得执行授权的可能，Skill 永远只注入上下文。
+- Workspace / Team Skill 后续更新不会改变已 Published 的 AgentVersion（它冻结的是 exact SkillVersion），也不会改变 Personal Skill Clone 或已绑定的 Conversation。
+- Conversation 中 `/skill` 导入使用 ConversationSkillBinding（conversationId + skillVersionId），同样绑定 exact SkillVersion，仅影响上下文（见 RUNTIME_CONTRACTS.md §6b）。
 
 ## 3. Tool
 
@@ -155,8 +179,8 @@ Control Plane tool domain 对应实体：ToolDefinition / ToolVersion / ToolBind
   "modelPolicy": "coding-default",
 
   "skills": [
-    "java-backend",
-    "code-review"
+    { "name": "java-backend", "skillVersionId": "sv_java_backend_3" },
+    { "name": "code-review", "skillVersionId": "sv_code_review_2" }
   ],
 
   "tools": [
@@ -171,8 +195,9 @@ Control Plane tool domain 对应实体：ToolDefinition / ToolVersion / ToolBind
 ```
 
 - `engine.type` 由 Runtime Core 的 AgentEngineRegistry 解析为具体 AgentEngine（见 RUNTIME_CONTRACTS.md §10）。
+- `skills[]` 中 `name` 只用于展示；`skillVersionId` 才是冻结绑定依据（对应 AgentSkillBinding）。Published Agent Version 冻结 exact SkillVersion；源 Skill 后续更新不产生内容漂移。
 - `tools[]` 中 `name` 只用于展示；`toolVersionId` 才是运行时绑定依据（API / DB 内部使用 ID）。
-- Published Agent Version immutable；manifest 是它的冻结序列化，tools 冻结为 exact ToolVersion。
+- Published Agent Version immutable；manifest 是它的冻结序列化，skills / tools 分别冻结为 exact SkillVersion / exact ToolVersion。
 - Run 启动后绑定 exact Agent Version，不跟随后续配置改变；运行时引用见 RUNTIME_CONTRACTS.md §2 的 Execution Snapshot。
 
 ## 8. 安全不变量
@@ -192,9 +217,11 @@ Control Plane tool domain 对应实体：ToolDefinition / ToolVersion / ToolBind
 
 | 文档 | 关系 |
 |---|---|
+| USER_AND_RESOURCE_MODEL.md | Agent kind / scope / ownership、Template Clone、Skill 资源模型与 Clone 语义的唯一详细定义 |
 | RUNTIME_CONTRACTS.md §10 | AgentEngine 接口与 EngineCapabilities 的正式定义 |
 | CONTROL_PLANE_DOMAINS.md §7 | ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition 领域模型 |
+| CONTROL_PLANE_DOMAINS.md §7b | Skill / SkillVersion / SkillCategory / AgentSkillBinding / UserSkillEnablement 领域模型 |
 | ARCHITECTURE.md §5 | Runtime Core 与 AgentEngine 的职责边界 |
-| DATA_MODEL.md | manifest / tool_binding / mcp_server_definition 等表结构 |
+| DATA_MODEL.md | manifest / tool_binding / mcp_server_definition / agent_skill_binding 等表结构 |
 | docs/stages/00 | 冻结本模型与相关契约 |
 | docs/stages/04 | Built-in Tool Registry、Executors、MCP 接入的实现与验收 |

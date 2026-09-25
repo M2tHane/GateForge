@@ -1,17 +1,23 @@
-# DESIGN.md — Agent Platform Web Console
+# DESIGN.md — GateForge Web Console
 
 ## 1. 设计目标
 
-界面定位为企业级 Agent Control Plane，不做聊天应用风格主页。整体采用蓝白、克制、清晰、低噪音的控制台视觉；优先展示“当前状态、风险、运行结果和下一步动作”，复杂配置进入详情页、Drawer 或 Settings。
+GateForge 对用户呈现两个体验层：
+
+1. **Employee Workspace（默认主体验）**：普通员工的“日常 AI 工作空间”——新建会话（Conversation）、新建任务（Task）、My Agents、Skills。界面轻量、对话式、上手零配置。
+2. **Administration / Governance（管理员体验）**：Agent Control Plane——Models、Tools / MCP、Skill Categories、Policies、Approvals、Teams / Members、Budgets、Audit。界面克制、结构化、状态优先。
+
+整体采用蓝白、克制、清晰、低噪音的视觉；优先展示“当前状态、风险、运行结果和下一步动作”，复杂配置进入详情页、Drawer 或 Settings。治理入口不挤占普通员工的日常导航。
 
 ## 2. 设计原则
 
-1. **状态优先**：页面第一眼能看到 Agent 是否可用、Run 是否异常、是否有待审批动作。
-2. **控制面优先**：Agent 的 Version、Model、Tools、Policy、Budget、Release 必须结构清晰。
-3. **Trace 可读**：Run Detail 的核心不是聊天气泡，而是执行时间线。
-4. **高风险动作显式**：Approve、Rollback、Disable、Delete 等必须有清楚的风险反馈。
-5. **不铺满**：首页只展示关键指标和最近活动；完整列表进入独立页面。
+1. **Workspace 优先**：普通员工打开产品第一眼是“新建会话 / 新建任务”，不是治理面板。
+2. **状态优先**：Agent 是否可用、Task 当前 Run 是否异常、是否有待审批动作，第一眼可见。
+3. **控制面分层**：Agent 的 Version、Model、Skills、Tools、Policy、Budget、Release 在 Agent Detail / Administration 中结构清晰，不混入聊天流。
+4. **Trace 可读**：Task 聊天流只显示人类可读的工具进度；完整 Tool Request / Result / Trace / Raw Event 放 Inspector。
+5. **高风险动作显式**：Approve、Publish、Rollback、Disable 等必须有清楚的风险反馈。
 6. **配置分层**：常用配置正文展示，低频高级配置放 Drawer / Settings。
+7. **同一资源语义全局一致**：Scope（平台 / 团队 / 我的）、Agent 状态（可用 / 已停用）、Run 状态全站统一。
 
 ## 3. 技术栈
 
@@ -20,7 +26,7 @@ Next.js / React / TypeScript
 Tailwind CSS
 shadcn/ui + Base UI
 TanStack Query
-TanStack Table
+TanStack Table（Administration 表格页）
 React Hook Form + Zod
 Recharts
 Lucide React
@@ -29,67 +35,347 @@ Lucide React
 ## 4. 信息架构
 
 ```text
-Overview
-Agents
-  └─ Agent Detail
-      ├─ Overview
-      ├─ Versions
-      ├─ Runs
-      ├─ Models
-      ├─ Tools
-      ├─ Policies
-      └─ Settings
-Runs
-Approvals
-Tools
-  ├─ Tool Registry（二级 Tab）
-  └─ MCP Servers（二级 Tab）
-Models
-Policies
-Budgets
-Audit
-Settings
+Employee Workspace（所有用户默认）
+├── 新建会话（Conversation）
+├── 新建任务（Task）
+├── Agents（Personal Agent Card Grid）
+│   └─ Agent Detail
+│       ├─ 概览
+│       ├─ 版本
+│       ├─ Skills
+│       ├─ Tools
+│       ├─ 历史任务
+│       └─ 设置
+├── Skills
+├── More
+│   ├─ My Approvals
+│   └─ Settings
+└── 多标签页主区域（Conversation / Task Tab）
+
+Administration（Admin / 授权角色额外可见）
+├── Overview
+├── Teams / Members
+├── Models
+├── Tools
+│   ├─ Tool Registry（二级 Tab）
+│   └─ MCP Servers（二级 Tab）
+├── Skill Categories
+├── Policies
+├── Approvals
+├── Budgets
+└── Audit
 ```
 
-左侧主导航保持 7–9 个一级入口；Agents 内部配置用二级 Tab，不把所有功能放主导航。
+说明：Workspace Agent Templates 由 Platform Admin 在 Agents 页的“平台模板”视图管理；Workspace Skills 由 Platform Admin 在 Skills 页“平台”Tab 管理（见 §10、§14）。普通员工的导航中不出现 Administration 入口。
 
 ## 5. App Shell
 
-### 左侧导航
-宽度 232–248px，可折叠。
+### 5.1 左侧导航（普通 Employee）
 
-顶部：
-- Logo / Product Name
-- Workspace Switcher
+宽度 248–264px，可折叠。
 
-主导航：
-- Overview
-- Agents
-- Runs
-- Approvals
-- Tools
-- Models
-- Policies
-- Audit
+```text
+GateForge（Logo）
 
-底部：
-- Settings
+[＋ 新建会话]
+[＋ 新建任务]
 
-不展示搜索框和用户资料大卡片。
+──────────────
 
-### 顶部栏
-高度 56px 左右：
-- Breadcrumb
-- 当前页面主要 Action
-- 可选状态提示
+Agents
+Skills
 
-不要放全局搜索框。
+──────────────
 
-## 6. Overview
+今天
+  Conversation A
+  Task B
+  Task C
+
+昨天
+  Conversation D
+  Task E
+
+──────────────
+
+More / Settings
+```
+
+- `＋ 新建会话`：点击立即进入新的聊天工作区。
+- `＋ 新建任务`：左侧第二个固定入口，点击进入 Task Workspace。
+- 历史记录统一展示 Conversation + Task，按时间分组（今天 / 昨天 / 更早）。
+- **不默认显示** Overview / Runs / Tools / Models / Policies / Audit——这些治理入口在 Administration，不挤占员工日常导航。
+- 不展示搜索框和用户资料大卡片。
+
+历史 item 样式：
+
+Conversation item：
+
+```text
+Spring Security 原理
+帮我解释认证链...
+GPT-xxx
+```
+
+Task item（必须显示 Agent Avatar + Agent Name，让员工快速知道是哪个 Agent 在做这个任务）：
+
+```text
+修复登录超时
+登录接口一直出现 504...
+[🤖] Coding Agent
+```
+
+### 5.2 顶部：多标签页 Tab Bar
+
+Conversation / Task 点击后在主区域打开 Tab，顶部类似 IDE：
+
+```text
+[Spring Security ×] [修复登录 Bug ×] [Review PR128 ×] [+]
+```
+
+- Tab 对应 **Conversation / Task**，不是 Agent。同一个 Agent 可以同时有多个 Task（修复登录 Bug / OAuth 开发 / Redis 优化），不能用 Agent 作为 Tab 唯一身份。
+- Tab 切换不得丢失：Conversation Context、Task Context、scroll state、draft input。
+- MVP Tab 打开状态由前端 Local State / LocalStorage 保存，不要求后端持久化 UI Tab。
+
+### 5.3 顶部栏
+
+高度 56px 左右：Breadcrumb、当前页面主要 Action、可选状态提示。不放全局搜索框。
+
+### 5.4 Administration 入口
+
+Platform Admin / 授权角色登录后，左侧导航底部（More 上方）额外出现 Administration 分组（Overview / Teams / Models / Tools / Skill Categories / Policies / Approvals / Budgets / Audit）。普通 Employee 不可见。
+
+## 6. Conversation Workspace（新建会话）
+
+点击 `＋ 新建会话` 立即进入新的聊天工作区，无需任何前置配置。
+
+消息输入框：
+
+```text
+┌─────────────────────────────────────────────┐
+│ 输入消息...                                 │
+│                                             │
+│ [GPT-xxx ▼]    /skill               [发送]  │
+└─────────────────────────────────────────────┘
+```
+
+- **Model Selector**：候选来自“我当前允许使用哪些模型”（Effective Capability 内的 Model Policy / logical model），不是 Provider 配置。
+- **/skill**：唤起统一 Skill Picker（见 §8），选中的 Skill 注入当前 Conversation 上下文；输入框上方以 chip 展示已导入 Skill，可单个移除。
+- 多轮对话；中途切换默认 Model：历史消息不改变，只影响后续调用。
+- Conversation 保存 defaultModelPolicyId；每条 Assistant 消息记录实际使用的 modelPolicy / provider / model / usage。
+- 已导入 Skill 绑定 exact SkillVersion：平台 Skill 后续更新不会静默改变进行中的 Conversation。
+- Conversation Skill 只影响上下文：不获得 Tool 权限、不修改 Agent、不创建 Agent、不修改 Policy / Approval。
+- 右侧 Inspector 默认隐藏或保持极简。
+- MVP Conversation 不执行 Tool。
+
+## 7. Task Workspace（新建任务）
+
+点击 `＋ 新建任务` 进入 Task Workspace；创建前先选择 Agent。
+
+Agent Picker 只显示：
+
+- 当前用户的 Personal Agent
+- ENABLED（可用）
+- 已存在 Published Version
+- 当前用户有权限使用
+
+底部输入框：
+
+```text
+┌─────────────────────────────────────────────┐
+│ 输入任务指令或继续告诉 Agent...             │
+│                                             │
+│ [🤖 Coding Agent ▼]                 [发送]  │
+└─────────────────────────────────────────────┘
+```
+
+- MVP 只允许选择一个 Agent；不出现 Add Agent / Agent Team / Supervisor / Multi-Agent。
+- Task 创建时固定该 Agent 的 exact Published AgentVersion；不自动跟随 Agent 后续新版本。
+- 每条新用户指令 → 新 Run（Run #1、Run #2…）；Approval 批准后恢复**同一个 Run**。
+- Task 状态只有 ACTIVE / ARCHIVED；执行状态从 Current Run 派生（聊天流顶部轻量展示当前 Run 状态：Running / Waiting Approval / Completed…）。
+
+### Inspector（右侧栏）
+
+Task 的右侧 Inspector 可展开，Tabs：
+
+```text
+[Run] [Files] [Tool] [Trace] [Approval]
+```
+
+- **Run**：当前与历史 Run 列表、状态、耗时、Token / Cost。
+- **Tool**：完整 Tool Request / Result、Policy Decision。
+- **Trace**：执行时间线与 Raw Event（完整 Run Trace 不塞进聊天流）。
+- **Approval**：待审批动作可直接处理（Reject / Approve），展示“批准的是本次精确请求”。
+- 聊天流中只显示简洁、人类可读的 Tool / Progress 信息（如“正在读取 src/auth/…”、“git.push 等待审批”）。
+
+Conversation 的 Inspector 默认隐藏；Task 的 Inspector 默认展开（可收起）。
+
+## 8. Skill Picker（统一组件）
+
+Agent Editor 和 Conversation `/skill` 必须复用同一个 Skill Picker。使用大型 Drawer：
+
+```text
+┌──────────────────────────────────────────────────┐
+│ 选择 Skills                           [完成 3]   │
+├──────────────────────────────────────────────────┤
+│ [平台] [团队] [我的]                            │
+├──────────────┬───────────────────────────────────┤
+│ 全部         │                                   │
+│ 开发         │ ☑ Java Backend                    │
+│ 设计         │ ☑ Code Review                     │
+│ 测试         │ ☐ UI Design                       │
+│ 数据         │                                   │
+│ 运维         │                                   │
+└──────────────┴───────────────────────────────────┘
+```
+
+- Scope Tab（平台 / 团队 / 我的）+ 左侧 Category 过滤（全部 / 开发 / 设计 / 测试 / 数据 / 运维…）。
+- 支持多选；显示已选数量；候选来自 Effective Capability。
+- MVP 不做 Skill Marketplace。
+
+## 9. Agents 页面
+
+Personal Agent **Card Grid**（不是 Table）。Desktop 每行 4 个 Card。
+
+```text
+┌────────────────────┐
+│ Avatar             │
+│ Coding Agent       │
+│                    │
+│ 创建：2026-09-26   │
+│ ● 可用             │
+│                    │
+│ [启动任务]   [···] │
+└────────────────────┘
+```
+
+- Card 至少展示：Avatar、Agent Name、Created At、可用 / 已停用（ENABLED / DISABLED）、Primary Action。
+- ENABLED：Primary Action 为 `[启动任务]`（进入 Task Workspace 并预选该 Agent）；DISABLED：为 `[启用]`。
+- `[···]`：启用 / 停用、查看详情等次级动作。
+- 不要把所有 Model / Tool / Token 信息塞进 Card；进入 Agent Detail 再看。
+- 右上角：`[+ 创建 Agent]`。
+- Platform Admin 额外可见“平台模板”视图（管理 Workspace Agent Templates，复用 Card Grid + 创建流程，创建时 scope = WORKSPACE）。
+
+## 10. Create Agent
+
+Agents 页面右上角 `[+ 创建 Agent]` 进入创建选择页：
+
+```text
+┌─────────────────────────┐
+│ 从模板创建              │
+│ Workspace / Team        │
+└─────────────────────────┘
+
+┌─────────────────────────┐
+│ 自定义 Agent            │
+│ 从空白开始              │
+└─────────────────────────┘
+```
+
+模板选择页：
+
+- Scope Tab：`[平台] [团队]`。
+- 模板以 Card 展示；选中模板后 Clone → Personal Agent Draft → 进入 Agent Editor。
+- Clone 记录来源（sourceTemplateVersionId）；模板之后更新不影响该 Personal Agent。
+
+## 11. Agent Editor
+
+从模板 Clone 或自定义创建后进入。至少包含分区：
+
+```text
+基本信息 | Engine | Model | Skills | Tools | MCP Tools | Review
+```
+
+用户可配置：
+
+- Name / Avatar / Description
+- Engine（如 pi）
+- Model（从允许的 Model Policy 候选集中选择）
+- Skills（统一 Skill Picker；候选 = Effective Capability 内的平台 / 团队 / 我的 Skill）
+- Allowed Built-in Tools
+- Allowed MCP Tools（只能选择管理员已接入并授权的 MCP Tool；不能自己连接 MCP Server）
+
+约束：
+
+- 候选能力全部来自 Effective Capability；服务端强制校验。
+- 用户不能输入 Model Provider Key（API Key / Endpoint Secret / Fallback Secret 均不可见）。
+- 用户不能连接 MCP Server、不能绑定自己没有权限使用的 ToolVersion。
+- 保存为 Draft → Publish 生成 Personal Agent Version v1；发布后该版本只读。
+
+## 12. Agent Detail
+
+```text
+Coding Agent                     [启动任务] [创建新版本]
+```
+
+Tabs：
+
+```text
+概览 | 版本 | Skills | Tools | 历史任务 | 设置
+```
+
+- **概览**：Engine、Model、Skills、Tools、MCP Tools、Published Version、Status（可用 / 已停用）。
+- **版本**：版本时间线（Draft / Published / Deprecated）。Published Version 只读；修改走 Published v1 → Clone Draft → 编辑 → Publish v2。
+- **Skills / Tools**：当前 Published Version 冻结绑定的 exact SkillVersion / ToolVersion（展示版本号，不可变）。
+- **历史任务**：该 Agent 的 Task 列表（点击打开对应 Task Tab）。
+- **设置**：基本信息、启停（ENABLED / DISABLED）等。
+
+## 13. Skills 页面
+
+Skills 是普通员工左侧一级入口。
+
+页面顶部 Scope Tab：
+
+```text
+[平台] [团队] [我的]
+```
+
+左侧 Category 导航：
+
+```text
+全部 / 开发 / 设计 / 测试 / 数据 / 运维 / ...
+```
+
+右侧 Skill Cards / List：
+
+```text
+┌────────────────────────┐
+│ Java Backend           │
+│ 开发 · 平台            │
+│                        │
+│ Spring Boot 开发规范   │
+│                        │
+│              [启用]    │
+└────────────────────────┘
+```
+
+- Card 显示：名称、Category · Scope（开发 · 平台）、描述、Enablement 动作。
+- 员工可以：查看平台 Skill、查看所在 Team Skill、查看自己的 Skill、Enable / Disable 可访问 Skill、Clone 平台 / 团队 Skill、创建 Personal Skill。
+- Clone = Snapshot Copy（记录 sourceSkillVersionId）；源 Skill 后续更新不影响 Personal Skill Clone、已 Published 的 AgentVersion 或已绑定的 Conversation。
+- 右上角 `[+ 创建 Skill]`：从模板创建 / 从空白创建；普通员工 Scope 固定 PERSONAL。
+- Platform Admin 在“平台”Tab 获得管理动作（创建 / 发布 / 停用 Workspace Skill，scope = WORKSPACE）；Skill 本体的 Category 归属由 Administration → Skill Categories 管理。
+
+## 14. Model 用户体验（Employee 视角）
+
+- Model Provider / Credential 全部由 Admin 控制；员工看不到 Provider 配置页。
+- 员工看到的是“我当前允许使用哪些模型”（Conversation Model Selector、Agent Editor Model 分区共用 `/api/me/model-candidates`）。
+- Agent 创建时 Model 选择实际绑定当前允许的 ModelPolicy / logical model。
+- Employee 永远不能编辑 API Key / Provider Endpoint Secret / Fallback Secret。
+
+## 15. My Approvals / More
+
+- Task Workspace Inspector → Approval 可直接处理自己 Task 中的审批。
+- More 中提供 **My Approvals**：聚合与当前用户 Task 相关的待审批。
+- Admin / 授权 approver 在 Administration → Approvals 处理治理范围审批。
+- UI 是否显示按钮不作为授权依据；权限仍由 Approval Service 控制。
+
+## 16. Administration 页面
+
+以下页面从“所有用户的主导航”移动到 Administration / Governance，保留原设计中仍然合理的部分。
+
+### Overview
 
 目标：10 秒内判断平台是否正常。
-
-布局：
 
 ```text
 [Active Agents] [Running Runs] [Pending Approvals] [24h Cost]
@@ -100,168 +386,52 @@ Pending Approvals
 - Agent / Action / Risk / Waiting / Approve
 
 Recent Runs
-- Run / Agent / Status / Duration / Cost / Time
+- Run / Task / Agent / Status / Duration / Cost / Time
 ```
 
-卡片数量控制在 4 个 KPI；不要做满屏 10+ 指标。
+卡片数量控制在 4 个 KPI。
 
-## 7. Agents List
+### Teams / Members
 
-使用 TanStack Table。
+Team 列表（名称、成员数、Team Admin）、Team Member 管理、Team Policy / 能力范围配置入口。
 
-列：
-- Agent
-- Active Version
-- Model Policy
-- Tools
-- Last Run
-- Status
-- Updated At
-- Actions
+### Models
 
-顶部仅保留：
-- 状态 Filter
-- `Create Agent`
+分成 Model Catalog 与 Model Policies。Model Policy Detail 显示 Primary Route / Fallback Routes / Max Tokens / Retry / Timeout / Budget behavior。不要把 provider API key 和普通模型配置混在一张表单。
 
-不放冗余搜索框；数据较多后再加入紧凑搜索能力。
+### Tools
 
-分页固定在表格底部，支持 10 / 20 行切换；页数多时允许跳页。
+二级 Tab：`[Tool Registry] [MCP Servers]`。
 
-## 8. Agent Detail
+- Tool Registry：Name / Provider（BUILTIN / MCP / HTTP）/ Risk Level / Used By Agents / Status；Detail 显示 Input Schema、Provider / Executor、Version / Checksum、Policy references、Recent Calls。
+- MCP Servers：Name / Transport / Status / Tool Count / Last Sync / Credential Status；Actions：Connect / Sync Tools / Disable / View Tools / Settings。
+- `builtin.*` 由 Runtime 注册，同样产生 ToolVersion；MCP Tool 由 sync 产生；Schema 变化生成新 ToolVersion，历史 Versions 保持可查询。
+- Secret 只显示“已配置 / 未配置”，永不回显。
 
-顶部 Header：
+### Skill Categories
+
+Category 列表（名称、描述、图标、排序、状态、Skill 数量）与增改管理。仅 Platform Admin；普通用户只读。
+
+### Policies
+
+结构化 Rule Builder：
 
 ```text
-Coding Agent                 [Published v1.4.2] [Run] [New Version]
-Fix and maintain repositories
+WHEN Subject = Agent: coding-agent
+AND  Action = tool.invoke
+AND  Tool = git.push
+AND  Resource.environment = production
+THEN REQUIRE_APPROVAL
 ```
 
-状态摘要：
-- Active Version
-- Model
-- Tool Count
-- 24h Runs
-- Success Rate
+提供只读 JSON Preview。不做代码编辑器式 DSL 页面。
 
-Tabs：
+### Approvals
 
-### Overview
-左侧：Agent Description / Engine（如 pi）  
-右侧：Model Policy / Skills / Tools / Budget / Approval summary
-
-### Versions
-版本时间线 / 表格：Draft / Published / Deprecated。
-
-发布是显式动作；Published 版本只读。
-
-### Runs
-只显示当前 Agent 的 Run。
-
-### Models / Tools / Policies
-展示绑定关系，不复制全局管理页面。
-
-## 9. Version Editor
-
-建议使用两栏：
+治理视角的审批列表（区别于 §15 的 My Approvals）。卡片 / 表格字段：Agent、Task、Run、Requested Action、Risk Level、Resource、Requested At、Expires At、Status。点击打开 Drawer：
 
 ```text
-┌──────────────────────┬─────────────────────────┐
-│ Instructions / Skills │ Effective Configuration │
-│ (Prompt / Reference)  │ Engine (如 pi)           │
-│                       │ Model Policy             │
-│ Markdown/textarea     │ Skills                   │
-│                       │ Tools (Built-in / MCP)   │
-│                       │ Budget / Approval        │
-└──────────────────────┴─────────────────────────┘
-                           [Save Draft] [Publish]
-```
-
-Version 编辑的内容即 Agent Version Manifest（docs/AGENT_CAPABILITY_MODEL.md §7）；发布后只读。
-
-Tools 区域中管理员选择的是具体 ToolVersion；UI 默认展示最新可选版本并明确版本号：
-
-```text
-GitHub MCP
-
-☑ create_pull_request
-   Version: 7
-   Schema updated: 2026-09-25
-```
-
-Agent Version 已 Published 时，ToolVersion 选择必须只读。
-
-不要做复杂低代码画布。v1 的核心是可靠版本化，不是视觉编排。
-
-## 10. Runs List
-
-列：
-- Run ID / Task Title
-- Agent
-- Version
-- Status
-- Duration
-- Token
-- Cost
-- Started At
-
-状态：
-- Running
-- Waiting Approval
-- Completed
-- Failed
-- Cancelled
-
-Waiting Approval 必须有明显但不夸张的视觉提示。
-
-## 11. Run Detail — 核心页面
-
-推荐三栏但保持主区域优先：
-
-```text
-┌────────────────────────────────────────────────────────┐
-│ Run Header: Status / Agent / Version / Duration / Cost │
-├────────────────────────────────┬───────────────────────┤
-│ Execution Timeline             │ Context Inspector     │
-│                                │                       │
-│ User Input                     │ Step Detail           │
-│ ↓                              │ Model                 │
-│ Model Call                     │ Tokens                │
-│ ↓                              │ Tool Arguments        │
-│ Tool Call                      │ Policy Decision       │
-│ ↓                              │ Trace IDs             │
-│ Approval                       │                       │
-│ ↓                              │                       │
-│ Completed                      │                       │
-└────────────────────────────────┴───────────────────────┘
-```
-
-右侧 Inspector 可折叠，并允许打开多个 Tab：
-- Step Detail
-- Prompt / Messages
-- Tool Request / Result
-- Policy Decision
-- Raw Event
-
-时间线节点颜色只表达状态，不做彩虹色。
-
-## 12. Approvals
-
-这是治理平台的关键页面。
-
-卡片/表格字段：
-- Agent
-- Run
-- Requested Action
-- Risk Level
-- Resource
-- Requested At
-- Expires At
-- Status
-
-点击后打开 Drawer：
-
-```text
-Requested by: Coding Agent / Run #1042
+Requested by: Coding Agent / Task 修复登录 Bug / Run #1042
 Action: git.push
 Resource: org/repo branch feat/login
 Arguments digest: ...
@@ -272,115 +442,13 @@ Policy: production-write-approval
 
 必须明确：批准的是“本次精确请求”，不是给 Agent 永久放权。
 
-## 13. Tools
+### Budgets
 
-Tools 页面顶部使用二级 Tab，不新增一级菜单：
+Budget Policy 列表与用量视图（沿用现有预算页面设计）。
 
-```text
-[Tool Registry] [MCP Servers]
-```
+### Audit
 
-### Tool Registry
-
-Tool List：
-- Name
-- Provider（BUILTIN / MCP / HTTP）
-- Risk Level
-- Used By Agents
-- Status
-
-Tool Detail：
-- Input Schema
-- Provider / Executor
-- Version / Checksum
-- Default Risk
-- Policy references
-- Recent Calls
-
-`builtin.*` 由 Runtime 注册，同样产生 ToolVersion；MCP Tool 由 MCP Server sync 产生。Schema 变化生成新 ToolVersion，历史 Versions 保持可查询、可绑定选择。
-
-### MCP Servers
-
-MCP Server List：
-- Name
-- Transport
-- Status
-- Tool Count
-- Last Sync
-- Credential Status
-- Actions
-
-Actions：
-- Connect MCP Server
-- Sync Tools
-- Disable
-- View Tools
-- Settings
-
-MCP Server Detail 自上而下：
-
-```text
-基本信息
-↓
-连接状态
-↓
-最近同步结果
-↓
-当前暴露的 Tools
-↓
-每个 Tool 的最新 ToolVersion
-↓
-历史 Versions
-```
-
-Secret 只显示“已配置/未配置”，永不回显。
-
-## 14. Models
-
-分成：
-- Model Catalog
-- Model Policies
-
-Model Policy Detail 显示：
-
-```text
-Primary Route
-Fallback Routes
-Max Tokens / Call
-Retry
-Timeout
-Budget behavior
-```
-
-不要把 provider API key 和普通模型配置混在一张表单。
-
-## 15. Policies
-
-MVP 不做代码编辑器式 DSL 页面。
-
-采用结构化 Rule Builder：
-
-```text
-WHEN Subject = Agent: coding-agent
-AND  Action = tool.invoke
-AND  Tool = git.push
-AND  Resource.environment = production
-THEN REQUIRE_APPROVAL
-```
-
-同时提供只读 JSON Preview，便于工程师核对实际规则。
-
-## 16. Audit
-
-表格：
-- Time
-- Actor
-- Operation
-- Resource
-- Result
-- Correlation ID
-
-点击行显示详细 metadata Drawer。
+表格：Time / Actor / Operation / Resource / Result / Correlation ID。点击行显示 metadata Drawer。
 
 ## 17. 组件规范
 
@@ -391,32 +459,29 @@ THEN REQUIRE_APPROVAL
 
 ### Button
 - Primary 只用于页面主要动作
-- Destructive 仅用于真实不可逆/高风险操作
+- Destructive 仅用于真实不可逆 / 高风险操作
 - 同一视图最多一个主 Primary Action
 
 ### Table
-- Header 固定语义，不使用过度背景色
+- 用于 Administration 列表页；Header 固定语义，不使用过度背景色
 - 行高约 44–48px
 - 状态用 Badge
 
 ### Drawer
-用于：
-- 详情查看
-- Approval
-- Tool Call / Policy Detail
-- 高级设置
+用于：Skill Picker、详情查看、Approval、Tool Call / Policy Detail、高级设置。
 
 ### Modal
-只用于：
-- 删除确认
-- Publish / Rollback 的最终确认
-- 短表单
+只用于：删除确认、Publish / Rollback 的最终确认、短表单。复杂配置不要塞进 Modal。
 
-复杂配置不要塞进 Modal。
+### Tabs
+- 页面级 Tabs（Agent Detail）与 Workspace Tab Bar（§5.2）语义不同，不复用样式。
 
 ## 18. 文案规范
 
 使用明确状态和动作：
+
+- Scope：`平台`（WORKSPACE）/ `团队`（TEAM）/ `我的`（PERSONAL）
+- Agent 状态：`可用` / `已停用`（不使用 Running / Stopped）
 - `Waiting for approval` 而不是 `Pending action`
 - `Publish version` 而不是 `Deploy config`
 - `Policy blocked this action` 而不是 `Something went wrong`
@@ -427,19 +492,41 @@ THEN REQUIRE_APPROVAL
 
 主要目标是 Desktop：≥ 1280px。
 
-1024–1279px：折叠侧栏。  
-< 1024px：保证查看和审批能力，但不要求完整配置编辑体验。
+1024–1279px：折叠侧栏与 Inspector。
+< 1024px：保证查看、聊天和审批能力，不要求完整配置编辑体验。
 
 ## 20. 前端 Stage 01 验收
 
-在连接后端之前，必须用 Mock Data 完成以下可点击页面：
-- Overview
-- Agents List
-- Agent Detail
-- Version Editor
-- Runs List
-- Run Detail
-- Approvals
-- Tools / Models / Policies 基础页面
+在连接后端之前，必须用 Mock Data 完成完整 Employee Workspace（优先级最高），Administration 仅保留基础可点击骨架。
+
+Employee Workspace 必须可点击演示：
+
+1. 新建会话
+2. Conversation 多轮聊天
+3. Model Selector
+4. /skill Picker
+5. 新建任务
+6. Agent Selector
+7. Task 多轮工作会话
+8. Task → Run 状态展示
+9. 多 Conversation / Task Tabs
+10. 左侧 History List
+11. Agents 四列 Card Grid
+12. Create Agent
+13. Workspace / Team Template Picker
+14. Template → Personal Agent Draft
+15. Agent Editor
+16. Agent Publish
+17. Agent Detail
+18. Skills 页面
+19. 平台 / 团队 / 我的 Tabs
+20. Category Filter
+21. Create Skill
+22. Workspace / Team Skill → Personal Skill Clone
+23. Skill Picker 多选
+24. Task Inspector
+25. Approval Mock Flow
+
+Administration 基础骨架（优先级低于 Employee Workspace）：Models、Tools / MCP、Skill Categories、Policies、Approvals、Teams、Audit。
 
 确认信息架构和交互后再进入 Control Plane 后端实现，避免 API 和页面同时反复变化。

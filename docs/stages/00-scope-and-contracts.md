@@ -2,26 +2,46 @@
 
 ## 目标
 
-在写业务代码前冻结 v1 的产品边界、核心实体、状态机和跨服务契约。
+在写业务代码前冻结 v1.2 的产品边界、核心实体、状态机、资源模型和跨服务契约。
 
 ## 冻结的契约
 
+### 执行与安全（v1.1.1 已冻结，不回退）
+
 - AgentEngine 最小接口（engine id / capabilities / start / resume / cancel）
 - EngineCapabilities（streaming / checkpoint / interrupt-resume / toolCalling / structuredOutput / multiAgent）
-- Agent Capability Model（Agent Version = Engine / Model Policy / Skills / Tools；Skill 与 Tool 的边界）
 - ToolDefinition / ToolVersion / ToolBinding / ToolPolicy / McpServerDefinition
 - ToolDefinition vs ToolVersion（identity vs immutable executable contract）
 - ToolBinding binds exact ToolVersion
 - Published Agent Version freezes ToolVersion
 - Runtime never resolves "latest tool version" for historical Runs
 - Tool Provider 抽象（BUILTIN / MCP / HTTP / future providers）
-- Agent Version Manifest
+- 统一 Tool 执行链（Built-in 与 MCP 一致）；bash 不能绕过 Tool Policy
+
+### User & Resource Model（v1.2 新增冻结）
+
+- Agent Capability Model（Agent Version = Engine / Model Policy / Skills / Tools；Skill 与 Tool 的边界）
+- Workspace / Team / User（Workspace 是唯一租户边界，不建 Organization 平行体系）
+- Resource Scope：WORKSPACE / TEAM / PERSONAL（UI 文案：平台 / 团队 / 我的；不用 PLATFORM 作为数据库 Scope）
+- Role：Platform Admin / Team Admin · Team Builder / Employee / Auditor · Operator
+- Effective Capability = Workspace Policy ∩ Team Policy ∩ User Permission ∩ Agent Configuration（下层只能缩小）
+- Agent kind（PERSONAL / TEMPLATE）与 ownership（ownerUserId / teamId / sourceTemplateVersionId）
+- Agent Template Clone = Snapshot Copy（非实时继承）；模板更新不影响已有 Personal Agent
+- Agent.status = ENABLED | DISABLED（不是 RUNNING / STOPPED）
+- Skill / SkillVersion / SkillCategory / AgentSkillBinding / UserSkillEnablement；Agent Version 绑定 exact SkillVersion
+- Skill Clone = Snapshot Copy；Skill 更新不影响 Personal Clone / Published AgentVersion / 已绑定 Conversation
+- Conversation ≠ Task ≠ Run；Conversation 执行链（必经 Model Gateway，不启动 AgentEngine，MVP 无 Tool）
+- Task 固定 exact Published AgentVersion；New user instruction → New Run；Approval / Pause Resume → Same Run
+- model_call 兼容 Run 驱动与 Conversation 驱动（exactly one execution owner）
+- Agent Version Manifest（skills 从 string[] 改为 exact SkillVersion 绑定）
 
 ## 做什么
 
-- 确认 PRD 的 MVP / 非目标。
+- 确认 PRD 的 MVP / 非目标，以及 Employee Workspace / Administration 两条产品体验。
 - 确认 Control Plane 与 Runtime 边界，以及 Runtime Core 与 AgentEngine 的职责边界。
-- 确认 Run / Approval / Agent Version 状态机。
+- 确认 Run / Approval / Agent Version 状态机，以及 Agent / Task 的产品状态语义。
+- 确认 Workspace / Team / User / Role / Effective Capability 与 Agent / Skill 归属模型（USER_AND_RESOURCE_MODEL.md）。
+- 确认 Conversation / Task / Run 的对象关系与执行规则。
 - 确认 3 Gateway 的职责与统一 Tool 执行链（Built-in 与 MCP Tool 一致）。
 - 建立 monorepo / multi-repo 目录和基础 CI。
 - 建立 API error contract、ID、时间、审计和 correlation id 规范。
@@ -30,6 +50,7 @@
 
 - PRD.md
 - ARCHITECTURE.md
+- USER_AND_RESOURCE_MODEL.md
 - AGENT_CAPABILITY_MODEL.md
 - CONTROL_PLANE_DOMAINS.md
 - RUNTIME_CONTRACTS.md
@@ -44,16 +65,23 @@
 - 不接真实模型。
 - 不做 Policy DSL。
 - 不实现 PiEngine 之外的 AgentEngine（LangGraphEngine / NativeEngine 仅预留命名）。
+- 不实现 Multi-Agent / Agent Team。
+- 不做 Skill Marketplace。
 
 ## Gate
 
 只有当以下问题都有唯一答案才能进入下一阶段：
+
 1. 谁能改变 Approval 状态？
 2. Runtime 是否能修改 Policy？
-3. Run 绑定哪个 Version？
+3. Run 绑定哪个 Version？Task 绑定哪个 Version？
 4. Tool Call 从哪里执行？（统一执行链是否对 Built-in / MCP Tool 一致？）
-5. Model API Key 在哪里？
+5. Model API Key 在哪里？Conversation 是否允许直连 Provider SDK？（唯一正确答案：不允许）
 6. AgentEngine 最小接口与 EngineCapabilities 是否冻结？
 7. Skill 与 Tool 的边界是否明确（Skill 无执行权限）？
-8. Agent Version Manifest 的字段是否冻结？
+8. Agent Version Manifest 的字段是否冻结（含 exact SkillVersion）？
 9. Published Agent Version 使用的是 ToolDefinition 还是 exact ToolVersion？（唯一正确答案：exact ToolVersion）
+10. Conversation / Task / Run 的区别与执行规则是否唯一（新指令新 Run、Approval Resume 原 Run）？
+11. Workspace / Team / User 与 Scope / Role / Effective Capability 是否冻结？
+12. Agent Template / Skill Clone 的语义是否唯一（Snapshot Copy，非实时继承）？
+13. Agent 状态语义是否唯一（ENABLED / DISABLED；执行状态只属于 Run）？

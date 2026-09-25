@@ -14,9 +14,10 @@ com.example.agentplatform.controlplane
 
 ```text
 Control Plane
-├── workspace        租户/工作空间边界
-├── identity         用户、服务身份、成员关系
-├── agent            Agent Definition / Version（Agent Capability Model）
+├── workspace        租户/工作空间边界 + Team
+├── identity         用户、服务身份、成员关系（Workspace Membership / TeamMembership / RoleBinding）
+├── agent            Agent Definition / Version（Agent Capability Model；Personal Agent + Template）
+├── skill            Skill / SkillVersion / SkillCategory / AgentSkillBinding / UserSkillEnablement
 ├── model            Model Catalog / Model Policy
 ├── tool             Tool Registry / Tool Provider / Tool Binding
 ├── policy           PDP / Policy Rule / Decision
@@ -27,19 +28,24 @@ Control Plane
 └── shared           ID、clock、outbox、error contract
 ```
 
+注意：Conversation / Task / Run 是 Data Plane user-work 执行状态，**不属于** Control Plane 治理域（见 ARCHITECTURE.md §2、USER_AND_RESOURCE_MODEL.md §7）；其公共 API 仍通过 Ingress 暴露。
+
 ## 3. workspace Domain
 
-职责：隔离资源归属。
+职责：隔离资源归属与组织结构。
 
 核心实体：
 - Workspace
 - WorkspaceSettings
+- Team
 
 核心规则：
-- Agent、Tool、Policy、Budget 均属于 Workspace。
+- Workspace 是唯一企业级隔离边界；Agent、Skill、Tool、Policy、Budget 均属于 Workspace。
+- Team 隶属 Workspace；Team 级资源（Team Agent Template / Team Skill）通过 `teamId` 归属。
+- 资源 Scope 统一为 `WORKSPACE | TEAM | PERSONAL`（UI 文案：平台 / 团队 / 我的；不使用 PLATFORM 作为数据库 Scope，见 USER_AND_RESOURCE_MODEL.md §2）。
 - 跨 Workspace ID 不允许关联。
 
-MVP 不做复杂企业组织树。
+MVP 不做复杂企业组织树，不为 Organization 建立平行租户体系。
 
 ## 4. identity Domain
 
@@ -48,7 +54,8 @@ MVP 不做复杂企业组织树。
 实体：
 - User
 - ServicePrincipal
-- Membership
+- Membership（Workspace 级）
+- TeamMembership
 - RoleBinding
 
 Subject 类型：
@@ -56,11 +63,15 @@ Subject 类型：
 - AGENT
 - SERVICE
 
+角色（详细职责见 USER_AND_RESOURCE_MODEL.md §3）：
+- RoleBinding（Workspace 级）：PLATFORM_ADMIN / AUDITOR / EMPLOYEE
+- TeamMember.role：TEAM_ADMIN（Team Admin / Team Builder）/ MEMBER
+
 重要：Agent Prompt 声称的身份不属于 Identity 输入。Subject 由服务端上下文注入。
 
 ## 5. agent Domain
 
-职责：Agent 的定义和版本。
+职责：Agent 的定义、版本、归属与模板语义。
 
 聚合：
 
@@ -68,16 +79,21 @@ Subject 类型：
 Agent
 ├── id
 ├── workspaceId
+├── kind                        # PERSONAL | TEMPLATE
+├── scope                       # WORKSPACE | TEAM | PERSONAL
+├── ownerUserId?                # kind=PERSONAL 必填
+├── teamId?                     # scope=TEAM 必填
+├── sourceTemplateVersionId?    # Clone 来源（模板的 Published AgentVersion），仅追踪
 ├── name
 ├── description
-├── status
+├── status                      # ENABLED | DISABLED（不是 RUNNING / STOPPED）
 └── currentPublishedVersionId
 
 AgentVersion（Agent Capability Model，见 docs/AGENT_CAPABILITY_MODEL.md）
 ├── versionNumber
 ├── engine: { type, config }       # 经 AgentEngineRegistry 解析（如 pi）
 ├── modelPolicyId
-├── skills                         # Prompt / Instructions / Reference，无执行权限
+├── skillBindings                  # AgentSkillBinding：绑定 exact SkillVersion
 ├── toolBindings                   # 绑定 exact ToolVersion（builtin.* / MCP / HTTP）
 ├── toolPolicyId
 ├── budgetPolicyId
@@ -92,6 +108,9 @@ AgentVersion（Agent Capability Model，见 docs/AGENT_CAPABILITY_MODEL.md）
 - Runtime 只能通过 Published Version 启动正式 Run；Run 启动后绑定 exact Agent Version，不跟随后续配置改变。
 - ToolBinding 绑定 exact ToolVersion，只表示“可以请求哪些精确版本的 Tool”，不等于授权；真正执行时仍必须经过 Policy 决策。
 - 发布时冻结 exact ToolVersion；后续 MCP sync 产生新 ToolVersion 不影响已发布版本。
+- AgentSkillBinding 绑定 exact SkillVersion；发布时冻结，源 Skill 更新不影响已发布版本（Skill 无执行权限）。
+- kind/scope 约束：PERSONAL Agent → scope=PERSONAL + ownerUserId 必填；Workspace Template → kind=TEMPLATE + scope=WORKSPACE；Team Template → kind=TEMPLATE + scope=TEAM + teamId 必填。
+- Template Clone 是 Snapshot Copy（Clone Published Template Version → Personal Agent Draft，记录 sourceTemplateVersionId），不是实时继承；模板更新不改变已有 Personal Agent（见 USER_AND_RESOURCE_MODEL.md §5）。
 
 ## 6. model Domain
 
@@ -183,6 +202,59 @@ tools/list
 注意：MCP sync 不允许静默改变已经 Published Agent Version 的 ToolBinding；已发布版本继续使用其冻结的 exact ToolVersion，历史 ToolVersion 保持可查询。
 
 ToolBinding 绑定 exact ToolVersion，表示 Agent Version “可以请求哪些精确版本的 Tool”，但最终仍需 Policy 决策。Built-in Tool 与 MCP Tool 都必须经过 Tool Gateway 统一执行链（见 docs/AGENT_CAPABILITY_MODEL.md §5）。
+
+## 7b. skill Domain
+
+职责：Skill 一级资源的身份、版本、分类、归属、Enablement 与 Clone 溯源。Skill 只注入上下文，永远没有执行权限。
+
+实体：
+- Skill
+- SkillVersion
+- SkillCategory
+- AgentSkillBinding
+- UserSkillEnablement
+
+关系：
+
+```text
+Skill
+├── SkillVersion（immutable instructions / references，checksum）
+├── SkillCategory（exactly one，categoryId NOT NULL）
+└── provider metadata（scope / ownership / enablement）
+
+AgentVersion
+↓
+AgentSkillBinding
+↓
+SkillVersion        # exact SkillVersion，发布时冻结
+```
+
+核心字段（完整定义见 USER_AND_RESOURCE_MODEL.md §6、§8；表结构见 DATA_MODEL.md）：
+
+```text
+Skill
+├── id / workspaceId
+├── scope        # WORKSPACE | TEAM | PERSONAL
+├── teamId? / ownerUserId?
+├── categoryId   # NOT NULL
+├── name / description
+├── status       # ENABLED | DISABLED
+├── currentPublishedVersionId
+└── sourceSkillVersionId?    # Clone 来源，仅追踪
+
+SkillVersion
+├── versionNumber / instructions / references / checksum
+└── state        # DRAFT | PUBLISHED | DEPRECATED
+```
+
+规则：
+- SkillCategory 由 Platform Admin 创建；普通用户不能创建 Category。Scope 与 Category 是正交维度。
+- Skill 只能属于一个 Category；Category 不改变 Scope。
+- Published SkillVersion immutable；Skill 更新 → 新 SkillVersion → Publish。
+- AgentSkillBinding 绑定 exact SkillVersion：Workspace / Team Skill 更新不会改变已 Published 的 AgentVersion、Personal Skill Clone 或已绑定的 Conversation。
+- Clone（Workspace / Team Skill → Personal Skill）是 Snapshot Copy，记录 sourceSkillVersionId，不建立实时继承。
+- UserSkillEnablement 记录用户对可访问 Skill 的 Enable / Disable，属于个人偏好，不改变 Skill 本身状态与 Policy。
+- Skill 与 Tool 不是同一种能力：Skill 不进入 Tool Registry，不经过 Tool Gateway，不产生 Tool 权限。
 
 ## 8. policy Domain
 
@@ -308,8 +380,10 @@ Audit append-only；普通业务 API 不提供 update/delete。
 ```text
 workspace ← identity
 workspace ← agent
+workspace ← skill
 agent → model (ID reference only)
 agent → tool  (ID reference only)
+agent → skill (ID reference only, via AgentSkillBinding)
 agent → budget (ID reference only)
 agent → policy (ID reference only)
 release → agent
@@ -332,6 +406,7 @@ control-plane/src/main/java/.../
 │   └── infrastructure/
 ├── identity/
 ├── agent/
+├── skill/
 ├── model/
 ├── tool/
 ├── policy/

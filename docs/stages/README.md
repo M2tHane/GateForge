@@ -2,14 +2,14 @@
 
 | Stage | 目标 | 核心验收 |
 |---|---|---|
-| 00 | 冻结边界与契约 | 状态、权限、Gateway 边界无歧义 |
-| 01 | 前端 Mock 原型 | 完整演示 Create Agent → Run → Approval |
-| 02 | Control Plane 基础 | Agent Version / Publish / Rollback 真实可用 |
-| 03 | Runtime + Model Gateway | 第一条真实 LLM Run 闭环；Runtime Core 不依赖 Pi SDK |
+| 00 | 冻结边界与契约 | 状态、权限、Gateway 边界、User & Resource Model（Workspace / Team / Agent / Skill / Conversation / Task / Run）无歧义 |
+| 01 | 前端 Mock 原型 | 完整 Employee Workspace 可点击演示（新建会话 / 新建任务 / Agents / Skills / Tabs / Inspector）；Administration 仅保留骨架 |
+| 02 | Control Plane 基础 | Workspace / Team / Membership / Personal Agent / Template Clone / Skill（含 Category、Enablement）/ Draft-Publish 真实可用；Agent Version 冻结 exact SkillVersion |
+| 03 | Runtime + Model Gateway | 两条真实链路闭环：Conversation → Model Gateway；Task → Run → PiEngine → Model Gateway；Runtime Core 不依赖 Pi SDK |
 | 04 | Tool Gateway + Policy | Builtin / MCP Tool 副作用全部经过强制策略入口 |
-| 05 | Approval | Suspend / Approve / Resume / exact action |
+| 05 | Approval | Suspend / Approve / Resume / exact action；Approval Resume 恢复原 Run |
 | 06 | Budget + OTel + Release | 可治理、可排障、可控成本 |
-| 07 | Multi-Agent + A2A | 复杂协作不突破既有权限边界 |
+| 07 | Multi-Agent + A2A | 复杂协作不突破既有权限边界（此前 Task 严格单 Agent） |
 
 ## 阶段规则
 

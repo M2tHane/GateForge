@@ -18,6 +18,7 @@ Runtime Core 拥有：
 - Approval integration
 - Budget
 - Audit / Runtime Events
+- Conversation / Task 的 user-work 执行状态（见 §6b、§11；域归属见 USER_AND_RESOURCE_MODEL.md §7）
 
 AgentEngine 只拥有 framework-specific 部分：
 - Agent Loop
@@ -42,13 +43,16 @@ Control Plane / Ingress 创建 Run 时生成不可变 Execution Snapshot：
 ```json
 {
   "runId": "...",
+  "taskId": "...",
   "workspaceId": "...",
   "agentId": "...",
   "agentVersionId": "...",
   "agentVersionManifest": {
     "engine": { "type": "pi", "config": {} },
     "modelPolicy": "coding-default",
-    "skills": [],
+    "skills": [
+      { "name": "java-backend", "skillVersionId": "sv_java_backend_3" }
+    ],
     "tools": [
       { "name": "builtin.read", "toolVersionId": "tv_builtin_read_v1" }
     ]
@@ -61,7 +65,9 @@ Control Plane / Ingress 创建 Run 时生成不可变 Execution Snapshot：
 }
 ```
 
-Snapshot 绑定 exact Published Agent Version；manifest 为其冻结内容（含 exact ToolVersion，见 AGENT_CAPABILITY_MODEL.md §7），Run 生命周期内不跟随配置变化，也不动态解析 ToolDefinition 的“最新版本”。Snapshot 中可以放引用与已解析的非敏感配置，但不能放 Provider Secret。
+Snapshot 绑定 exact Published Agent Version；manifest 为其冻结内容（含 exact ToolVersion 与 exact SkillVersion，见 AGENT_CAPABILITY_MODEL.md §7），Run 生命周期内不跟随配置变化，也不动态解析 ToolDefinition / SkillDefinition 的“最新版本”。Snapshot 中可以放引用与已解析的非敏感配置，但不能放 Provider Secret。
+
+所有 Employee 产品面发起的 Run 都由 Task 创建（`taskId` 必填）；`taskId` 为空的 Run 仅保留给平台内部 / 管理性执行，不在 Employee 产品面暴露（见 API_CONTRACTS.md §4）。
 
 ## 3. Runtime 状态机
 
@@ -79,6 +85,19 @@ PAUSED → CANCELLED
 ```
 
 任何非法迁移返回 conflict，不直接覆盖 status。
+
+注意：Run 状态机只属于执行实例。Agent.status = ENABLED | DISABLED（可用 / 已停用），Task.status = ACTIVE | ARCHIVED；不要把 RUNNING / WAITING_APPROVAL 等执行状态放到 Agent 或 Task 上（见 USER_AND_RESOURCE_MODEL.md §5.4、§7）。
+
+## 3b. Task → Run 执行规则
+
+```text
+Task ≠ Run
+```
+
+- Task 创建时固定 `agentId` + `agentVersionId`（exact Published AgentVersion）；Task 生命周期内不自动跟随 Agent 后续新 Version，升级必须显式操作（MVP 不做自动升级）。
+- **New user instruction → New Run**：Task 中每条新的用户指令创建一个新 Run（共享 Task 上下文与固定 AgentVersion）。
+- **Approval / Pause Resume → Same Run**：Run 进入 WAITING_APPROVAL / PAUSED 后，批准或恢复继续**同一个 Run**，不新建 Run。
+- MVP 固定：1 Task → 1 Agent → 1 exact Published AgentVersion → 1 AgentEngine；Multi-Agent 留到后续 Stage。
 
 ## 4. Action Request
 
@@ -138,7 +157,7 @@ NON_RETRYABLE_FAILURE
 ## 6. Model Gateway Contract
 
 Request：
-- run identity
+- execution identity（Run 驱动或 Conversation 驱动，见 §6b；两者必居其一）
 - model policy ref
 - messages/context reference
 - structured output schema（可选）
@@ -152,6 +171,40 @@ Gateway 必须完成：
 - event/audit metadata
 
 Provider response 不得绕过 Gateway 直接写 Run 状态。AgentEngine 同样不得直接调用 Provider SDK——Model Call 由 Runtime Core 经 Model Gateway 执行。
+
+ModelCall 记录兼容两种驱动来源（Run 驱动 / Conversation 驱动），共用同一套记录与 usage 体系，不复制两套系统；每次调用记录实际使用的 modelPolicy / provider / model / usage（见 DATA_MODEL.md model_call）。
+
+## 6b. Conversation Contract（普通对话链路）
+
+```text
+Conversation ≠ Task：Conversation 不绑定 Agent、不经过 AgentEngine、不产生 Run。
+```
+
+执行链：
+
+```text
+Employee
+↓
+Conversation
+↓
+Ingress
+↓
+Conversation Runtime（runtime/conversation 模块，Data Plane 内独立模块，非新部署服务）
+↓
+Model Gateway
+↓
+LLM
+↓
+ConversationMessage
+```
+
+- Conversation 必须使用 Model Gateway，**禁止直接调用 Provider SDK**。
+- Conversation 保存 `defaultModelPolicyId`；用户可中途切换 Model，历史消息不改变，只影响后续调用；每次 Assistant Model Call 记录实际使用的 modelPolicy / provider / model / usage。
+- `/skill` 通过统一 Skill Picker 导入 Skill，产生 ConversationSkillBinding（conversationId + exact SkillVersion）；Skill 只注入上下文：
+  - 不获得 Tool 权限，不经过 Tool Gateway；
+  - 不修改 Agent、Policy、Approval、Budget 等任何控制状态；
+  - 添加 / 移除 Skill 不重写历史消息；源 Skill 更新不改变已绑定的 exact SkillVersion。
+- MVP Conversation 不执行任何 Tool。
 
 ## 7. Checkpoint
 
@@ -189,11 +242,13 @@ Runtime 崩溃后重试时，不重复执行 git push / deploy / email 等副作
 建议统一事件：
 - run.started
 - agent.message
-- model.call.started/completed
+- model.call.started/completed        # Run 驱动与 Conversation 驱动共用
 - tool.call.requested/completed
 - policy.denied
 - approval.requested/resolved
 - checkpoint.created
+- conversation.message.completed
+- task.run.created
 - run.completed/failed
 
 Web Console 通过 SSE 或 WebSocket 订阅；MVP 推荐 SSE。

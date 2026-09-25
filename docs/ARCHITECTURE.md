@@ -37,8 +37,9 @@ flowchart TB
 
 ### Control Plane
 负责“定义允许发生什么”：
-- Workspace / Identity / Membership
-- Agent Registry / Version
+- Workspace / Team / Identity / Membership
+- Agent Registry / Version（Personal Agent + Agent Template）
+- Skill Registry（Skill / SkillVersion / SkillCategory / AgentSkillBinding）
 - Model Policy
 - Tool Registry / Tool Provider / Tool Policy
 - Policy Decision
@@ -51,6 +52,7 @@ flowchart TB
 负责“真正执行任务”：
 - Ingress enforcement
 - Session / Run
+- Conversation / Task（user-work 执行状态，见 USER_AND_RESOURCE_MODEL.md §7）
 - Context
 - Agent Loop（由 AgentEngine 提供，framework-specific）
 - Workflow / DAG
@@ -59,7 +61,7 @@ flowchart TB
 - Checkpoint
 - Runtime Event Stream
 
-关键约束：Data Plane 可以读取有效策略并请求决策，但不能修改策略本身。
+关键约束：Data Plane 可以读取有效策略并请求决策，但不能修改策略本身。Conversation / Task 属于 Data Plane user-work 执行状态，不是治理型 Control Plane Domain；其公共 API 仍通过 Ingress 暴露。
 
 ## 3. 3 Gateways
 
@@ -140,10 +142,12 @@ Runtime Core 拥有：Run、Session、Agent Version Snapshot、State Machine、C
 
 AgentEngine 只负责 framework-specific 部分：Agent Loop、Context execution、Prompt execution、framework state、Tool Call / Model Call 生成。**Pi 只是 AgentEngine 的第一种实现，不是 Runtime Core 本身。**
 
-Runtime 内部目录：
+Runtime 内部目录（Conversation / Task 与 Core / Engines 同属 agent-runtime，不新增部署服务）：
 
 ```text
 runtime/
+├── conversation/      # Conversation Runtime：普通对话链路（不启动 AgentEngine）
+├── task/              # Task → Run 编排：Task 固定 AgentVersion、新指令新 Run
 ├── core/
 │   ├── session
 │   ├── run
@@ -158,6 +162,30 @@ runtime/
 ```
 
 接口定义见 RUNTIME_CONTRACTS.md §10；能力组成见 AGENT_CAPABILITY_MODEL.md。
+
+### 5.2 Conversation Path（普通对话执行链）
+
+普通 Conversation 不绑定 Agent，不经过 AgentEngine / Tool Gateway：
+
+```text
+Employee
+↓
+Conversation
+↓
+Ingress
+↓
+Conversation Runtime（runtime/conversation 模块）
+↓
+Model Gateway
+↓
+LLM
+↓
+ConversationMessage
+```
+
+- Conversation 必须经 Model Gateway，**禁止直接调用 Provider SDK**。
+- `/skill` 导入的 Skill 绑定 exact SkillVersion，只注入上下文，不产生 Tool 权限。
+- Agent Task 路径（Task → Run → Runtime Core → AgentEngine）与该链路相互独立，共享 Model Gateway / 事件流 / 可观测性基础设施。
 
 ## 6. 受控状态迁移
 
@@ -183,6 +211,8 @@ Runtime 不允许任意写 `status`；必须调用状态机命令，例如：
 - cancelRun
 
 每个命令验证合法前态。
+
+注意：Run 状态机只属于执行实例。Agent 的产品状态是 `ENABLED | DISABLED`（可用 / 已停用），Task 的产品状态是 `ACTIVE | ARCHIVED`；三者不要混用（见 USER_AND_RESOURCE_MODEL.md §5.4、§7）。
 
 ## 7. 一次 Tool Call 的完整链路
 
@@ -236,20 +266,19 @@ sequenceDiagram
 ## 9. 事件模型
 
 核心事件：
-- AgentCreated
-- AgentVersionPublished
-- RunCreated
-- RunStarted
+- AgentCreated / AgentVersionPublished
+- TaskCreated / TaskArchived
+- RunCreated / RunStarted
+- ConversationCreated / ConversationMessageCompleted
 - ModelCallCompleted
 - ToolCallRequested
 - PolicyDecisionMade
-- ApprovalRequested
-- ApprovalResolved
+- ApprovalRequested / ApprovalResolved
 - ToolCallCompleted
 - RunCompleted / RunFailed
 - ReleaseActivated / RolledBack
 
-MVP 不要求 Kafka。先用 Postgres Outbox + worker。
+Conversation 驱动与 Task / Run 驱动的事件复用同一 Event Stream 基础设施；MVP 不要求 Kafka，先用 Postgres Outbox + worker。
 
 ## 10. 安全边界
 

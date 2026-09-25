@@ -16,6 +16,7 @@ gateforge/
 ├── docs/
 │   ├── PRD.md
 │   ├── ARCHITECTURE.md
+│   ├── USER_AND_RESOURCE_MODEL.md
 │   ├── AGENT_CAPABILITY_MODEL.md
 │   ├── CONTROL_PLANE_DOMAINS.md
 │   ├── RUNTIME_CONTRACTS.md
@@ -43,6 +44,7 @@ services/control-plane/src/main/java/.../
 ├── workspace/
 ├── identity/
 ├── agent/
+├── skill/
 ├── model/
 ├── tool/
 ├── policy/
@@ -66,6 +68,8 @@ infrastructure/
 
 ```text
 services/agent-runtime/src/
+├── conversation/                     # Conversation Runtime：普通对话链路（必经 Model Gateway，不启动 AgentEngine）
+├── task/                             # Task → Run 编排：固定 AgentVersion、新指令新 Run
 ├── core/                             # Runtime Core：禁止 import 任何 engine SDK
 │   ├── session/
 │   ├── run/

@@ -11,6 +11,8 @@ PRD
 ↓
 ARCHITECTURE
 ↓
+USER_AND_RESOURCE_MODEL
+↓
 AGENT_CAPABILITY_MODEL
 ↓
 RUNTIME_CONTRACTS / CONTROL_PLANE_DOMAINS
@@ -50,17 +52,66 @@ Provider SDK / API Key 不进入普通 Agent implementation，也不进入 Agent
 ### G8 — bash 不是权限逃生通道
 若 `git.push` 的 Policy 是 REQUIRE_APPROVAL，则不能通过 `bash("git push ...")` 绕开审批。shell executor 至少受 workspace sandbox、command policy、filesystem scope、network policy、environment / secret isolation 控制。
 
+## 2b. 产品模型不变量（v1.2 冻结）
+
+以下产品不变量与 §2 的系统不变量同等优先（唯一定义见 USER_AND_RESOURCE_MODEL.md）：
+
+### P1 — Conversation ≠ Task ≠ Run
+Conversation 是普通 LLM 多轮对话（不绑定 Agent、不经过 AgentEngine）；Task 是用户视角的长期 Agent 工作会话；Run 是 Runtime 一次实际执行实例。三者不互相冒充。
+
+### P2 — Task ≠ Run；执行规则冻结
+New user instruction → New Run；Approval / Pause Resume → Same Run。不因 Approval Resume 新建 Run，也不把一次执行当成一个 Task。
+
+### P3 — Agent ≠ Agent Template
+员工使用的是 Personal Agent（kind=PERSONAL）；Workspace / Team 提供的是 Agent Template（kind=TEMPLATE）。Template 不是共享运行实体。
+
+### P4 — Agent Enabled ≠ Run Running
+Agent.status 只有 ENABLED / DISABLED（可用 / 已停用），Task.status 只有 ACTIVE / ARCHIVED；RUNNING / WAITING_APPROVAL 等执行状态只属于 Run。Agent 不是后台常驻进程。
+
+### P5 — Skill ≠ Tool；Skill 没有执行权限
+Skill 只注入上下文，不进入 Tool Registry、不经过 Tool Gateway、不产生 Tool 权限。
+
+### P6 — Agent Version 冻结 exact SkillVersion 与 exact ToolVersion
+Published Agent Version 通过 AgentSkillBinding / ToolBinding 冻结 exact SkillVersion / ToolVersion；`name` 仅展示，`*VersionId` 才是绑定依据。源 Skill / Tool 更新不产生内容漂移。
+
+### P7 — Template Clone 是 Snapshot Copy
+Agent Template Clone 与 Skill Clone 都记录来源（sourceTemplateVersionId / sourceSkillVersionId），但不建立实时继承；Clone 完成后生命周期完全独立。
+
+### P8 — Workspace / Team Template 更新不能改变已有 Personal Agent
+模板发布 v2 不影响已存在的 Personal Agent 任何版本。
+
+### P9 — Workspace / Team Skill 更新不能改变
+- Personal Skill Clone；
+- 已 Published 的 AgentVersion（其冻结的是 exact SkillVersion）；
+- 已绑定的 Conversation SkillVersion。
+
+### P10 — Effective Capability 只能缩小
+Workspace Policy ∩ Team Policy ∩ User Permission ∩ Agent Configuration；下层只能缩小能力，不能扩大能力。Workspace 禁止的动作，Team / User / Agent 都不能重新允许。
+
+### P11 — Conversation 必经 Model Gateway
+Conversation Runtime 禁止直接调用 Provider SDK；Skill 导入不改变这一点。
+
+### P12 — Task 必须固定 exact Published AgentVersion
+Task 创建时固定 agentId + agentVersionId，不自动跟随 Agent 新版本；升级必须显式操作。
+
+### P13 — MVP Task = Single Agent
+一个 Task 只绑定一个 Agent；不出现 Add Agent / Agent Team / Supervisor / Multi-Agent。
+
+### P14 — Employee 权限边界
+Employee 不能添加 Provider Secret、私自连接 MCP Server、创建 Skill Category、提升 Tool 权限或绕过 Workspace / Team Policy。
+
 ## 3. 每个 PR 的架构检查
 
 提交前回答：
 
-- 这个改动属于 Control Plane 还是 Data Plane？
-- 是否新增了绕过 Gateway 的调用路径（包括 Built-in Tool）？
-- 是否让 AgentEngine 依赖了 framework SDK 超出 `engines/<engine>/` 边界，或让 Runtime Core 依赖了具体 engine SDK？
+- 这个改动属于 Control Plane 还是 Data Plane？是否把 Conversation / Task 误放进了治理型 Control Plane Domain？
+- 是否新增了绕过 Gateway 的调用路径（包括 Built-in Tool）？是否让 Conversation 直连了 Provider SDK？
+- 是否新增了 AgentEngine 依赖 framework SDK 超出 `engines/<engine>/` 边界，或让 Runtime Core 依赖了具体 engine SDK？
 - 是否新增了 AgentEngine 直接调用 Provider / 执行 Tool 的路径？
 - 是否让 Prompt/LLM 决定了本应由 Runtime 决定的状态？
-- 是否修改了 Published Version 的不可变语义？
-- 是否改变 Run / Approval 状态机？
+- 是否修改了 Published Version 的不可变语义？是否破坏 exact SkillVersion / exact ToolVersion 绑定？
+- 是否违反 P1–P14 中的产品不变量（如 Template 实时继承、Task 自动升级、Agent 使用 RUNNING 状态、Skill 获得执行权限）？
+- 是否改变 Run / Approval 状态机或 Task → Run 执行规则？
 - 是否需要 ADR？
 
 只要其中任何一项答案不确定，就不能直接合并。

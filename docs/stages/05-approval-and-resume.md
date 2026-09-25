@@ -4,6 +4,12 @@
 
 完成平台最关键的 Human-in-the-loop 安全闭环。
 
+## 用户入口
+
+- Employee：Task Workspace Inspector → Approval 直接处理自己 Task 中的审批；More → My Approvals 聚合入口。
+- Admin / 授权 approver：Administration → Approvals。
+- UI 按钮是否可见不作为授权依据；授权仍由 approval domain 控制。
+
 ## 实现
 
 Control Plane：

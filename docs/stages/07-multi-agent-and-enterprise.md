@@ -4,6 +4,8 @@
 
 在单 Agent 控制链稳定后，再扩展复杂协作能力。
 
+前置约束：MVP（Stage 00–06）中 Task 严格单 Agent（1 Task → 1 Agent → 1 exact Published AgentVersion）；本阶段是唯一允许放开该约束的阶段，且不得突破既有权限边界。
+
 ## 实现方向
 
 ### Multi-Agent
