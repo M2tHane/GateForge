@@ -16,7 +16,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        "focus-ring inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         size === "sm" ? "h-7 px-2.5 text-xs" : "h-9 px-3.5 text-sm",
         variant === "primary" && "bg-primary text-primary-foreground hover:bg-primary/90",
         variant === "secondary" && "bg-secondary text-secondary-foreground hover:bg-accent",
@@ -93,7 +93,7 @@ export function Card({
       onClick={onClick}
       className={cn(
         "surface p-4",
-        interactive && "cursor-pointer transition-colors hover:border-primary/40 hover:bg-accent/30",
+        interactive && "cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-accent/20 hover:shadow-md",
         className,
       )}
     >

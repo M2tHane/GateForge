@@ -3,6 +3,8 @@
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TabBar } from "@/components/shell/TabBar";
 import { useStoreHydrated } from "@/components/shell/useStoreHydrated";
+import { useWorkspaceStore } from "@/lib/store/workspace-store";
+import { cn } from "@/lib/utils";
 
 /**
  * App Shell (DESIGN.md §5): 左侧导航 + IDE 式 Tab Bar + 内容区。
@@ -11,17 +13,18 @@ import { useStoreHydrated } from "@/components/shell/useStoreHydrated";
  */
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const hydrated = useStoreHydrated();
+  const theme = useWorkspaceStore((s) => s.theme);
 
   if (!hydrated) {
     return (
-      <div className="app-shell flex h-screen items-center justify-center">
+      <div className={cn("app-shell flex h-screen items-center justify-center", theme === "night" && "dark")}>
         <div className="text-sm text-muted-foreground">GateForge…</div>
       </div>
     );
   }
 
   return (
-    <div className="app-shell flex h-screen overflow-hidden">
+    <div className={cn("app-shell flex h-screen overflow-hidden", theme === "night" && "dark")}>
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TabBar />

@@ -2,12 +2,12 @@
 
 /**
  * Employee Workspace Sidebar（DESIGN.md §5.1）：
- * 核心入口（Agents / Skills）+ 辅助入口（我的审批 / 管理员 / 更多 / 设置）
+ * 核心入口（Agents / Skills）+ 辅助入口（我的审批 / 管理员 / 设置）
  * + History（全部 / 任务 / 会话 过滤；紧凑单行列表，updatedAt DESC，无日期分组）。
  * Administration 不在此展开 —— 「管理员」进入独立 Admin Shell（§5.4）。
  */
 import { useMemo, useState } from "react";
-import { Bot, Building2, FolderKanban, LayoutGrid, MessageSquare, MessageSquarePlus, MoreHorizontal, ShieldCheck, Sparkles, SquareCheckBig } from "lucide-react";
+import { Bot, Building2, FolderKanban, LayoutGrid, MessageSquare, MessageSquarePlus, Settings, ShieldCheck, Sparkles, SquareCheckBig } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { useWorkspaceNav, hasAdminCapability } from "@/components/shell/nav";
 import { Avatar } from "@/components/ui/primitives";
@@ -68,14 +68,10 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* 核心资源入口 */}
-      <nav className="mt-4 flex flex-col gap-0.5 px-3">
+      {/* 工作区入口：统一垂直节奏 */}
+      <nav className="mt-4 flex flex-col gap-1 px-3">
         <SidebarLink icon={<LayoutGrid size={15} />} label="Agents" onClick={() => nav.go("/agents")} />
         <SidebarLink icon={<FolderKanban size={15} />} label="Skills" onClick={() => nav.go("/skills")} />
-      </nav>
-
-      {/* 辅助入口（Administration 只留一个「管理员」入口，不再展开子模块） */}
-      <nav className="mt-3 flex flex-col gap-0.5 px-3">
         <SidebarLink
           icon={<ShieldCheck size={15} />}
           label="我的审批"
@@ -85,7 +81,7 @@ export function Sidebar() {
         {canAdmin ? (
           <SidebarLink icon={<Building2 size={15} />} label="管理员" onClick={() => nav.admin()} />
         ) : null}
-        <SidebarLink icon={<MoreHorizontal size={15} />} label="更多 / 设置" onClick={() => nav.go("/settings")} />
+        <SidebarLink icon={<Settings size={15} />} label="设置" onClick={() => nav.go("/settings")} />
       </nav>
 
       {/* History：全部 / 任务 / 会话 过滤（默认全部） */}
@@ -191,7 +187,7 @@ function SidebarLink({
   return (
     <button
       onClick={onClick}
-      className="focus-ring flex h-8 items-center gap-2 rounded-lg px-2 text-[13px] text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+      className="focus-ring flex h-9 items-center gap-2 rounded-lg px-2 text-[13px] text-sidebar-foreground transition-all duration-200 hover:translate-x-0.5 hover:bg-sidebar-accent"
     >
       <span className="text-muted-foreground">{icon}</span>
       <span className="flex-1 text-left">{label}</span>

@@ -6,7 +6,7 @@
  * - a REQUIRE_APPROVAL decision pauses the SAME Run at WAITING_APPROVAL
  * - approving resumes that SAME Run (never creates a new one)
  */
-import type { PolicyDecision, ToolProvider, ToolRiskLevel } from "@/lib/types";
+import type { FileChange, PolicyDecision, ToolProvider, ToolRiskLevel } from "@/lib/types";
 
 // ---------- Conversation replies（Conversation 必经 Model Gateway 的 mock 输出） ----------
 
@@ -41,7 +41,7 @@ export interface RunStep {
     riskLevel: ToolRiskLevel;
     resultDigest?: string;
   };
-  file?: { path: string; change: "created" | "modified"; diffSummary: string };
+  file?: FileChange;
   assistantText?: string;
   /** 执行完该步后的 Run 状态（缺省保持 RUNNING） */
   endStatus?: "COMPLETED" | "FAILED";
@@ -95,7 +95,26 @@ export function buildFirstRunPlan(_agentName: string, instruction: string): RunS
       title: "builtin.edit 修改 LoginService.java 连接池超时",
       detail: "+8 −2",
       tool: { name: "builtin.edit", versionId: tv("builtin.edit"), provider: "BUILTIN", argsDigest: 'file="src/auth/LoginService.java" hunk="pool.timeout 504→30s"', decision: "ALLOW", riskLevel: MED },
-      file: { path: "src/main/java/com/acme/auth/LoginService.java", change: "modified", diffSummary: "+8 −2" },
+      file: {
+        path: "src/main/java/com/acme/auth/LoginService.java",
+        change: "modified",
+        diffSummary: "+8 −2",
+        before: `public LoginResult login(LoginRequest request) {
+    var session = pool.borrow();
+    session.setTimeout(504_000);
+    return authenticate(session, request);
+}`,
+        after: `public LoginResult login(LoginRequest request) {
+    var session = pool.borrow();
+    session.setTimeout(Duration.ofSeconds(30));
+    session.setValidationTimeout(Duration.ofSeconds(3));
+    try {
+        return authenticate(session, request);
+    } finally {
+        pool.release(session);
+    }
+}`,
+      },
     },
     {
       delay: 1300, type: "tool",
@@ -149,7 +168,38 @@ export function buildFollowupRunPlan(instruction: string): RunStep[] {
       title: "builtin.edit 补充边界用例",
       detail: "+34 −0",
       tool: { name: "builtin.edit", versionId: tv("builtin.edit"), provider: "BUILTIN", argsDigest: 'file="LoginServiceTest.java" hunk="add pool timeout edge cases"', decision: "ALLOW", riskLevel: MED },
-      file: { path: "src/test/java/com/acme/auth/LoginServiceTest.java", change: "modified", diffSummary: "+34 −0" },
+      file: {
+        path: "src/test/java/com/acme/auth/LoginServiceTest.java",
+        change: "modified",
+        diffSummary: "+34 −0",
+        before: `class LoginServiceTest {
+    @Test
+    void loginReturnsToken() {
+        // existing happy-path coverage
+    }
+}`,
+        after: `class LoginServiceTest {
+    @Test
+    void loginReturnsToken() {
+        // existing happy-path coverage
+    }
+
+    @Test
+    void recoversAfterPoolTimeout() {
+        // verifies timeout recovery
+    }
+
+    @Test
+    void keepsRetryIdempotent() {
+        // verifies retry idempotency
+    }
+
+    @Test
+    void handlesPoolJitter() {
+        // verifies transient pool jitter
+    }
+}`,
+      },
     },
     {
       delay: 1100, type: "tool",

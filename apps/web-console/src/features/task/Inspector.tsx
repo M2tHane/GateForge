@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
@@ -41,6 +42,7 @@ export function Inspector({
   collapsed: boolean;
   onToggle: () => void;
 }) {
+  const router = useRouter();
   // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
   const store = useWorkspaceStore();
   const task = store.tasks[taskId];
@@ -100,7 +102,10 @@ export function Inspector({
             {tab === "run" ? (
               <RunTab runs={runs} selectedRun={selectedRun} onSelect={setSelectedRunId} />
             ) : null}
-            {tab === "files" ? <FilesTab run={selectedRun} /> : null}
+            {tab === "files" ? <FilesTab taskId={taskId} run={selectedRun} onOpen={(runId, path) => {
+              useWorkspaceStore.getState().openFileDiffTab(taskId, runId, path);
+              router.push(`/diff?taskId=${encodeURIComponent(taskId)}&runId=${encodeURIComponent(runId)}&path=${encodeURIComponent(path)}`);
+            }} /> : null}
             {tab === "tool" ? <ToolTab run={selectedRun} /> : null}
             {tab === "trace" ? <TraceTab run={selectedRun} /> : null}
             {tab === "approval" ? <ApprovalTab taskId={taskId} /> : null}
@@ -166,23 +171,38 @@ function RunTab({
   );
 }
 
-function FilesTab({ run }: { run?: Run }) {
+function FilesTab({
+  taskId,
+  run,
+  onOpen,
+}: {
+  taskId: string;
+  run?: Run;
+  onOpen: (runId: string, path: string) => void;
+}) {
   if (!run || run.files.length === 0) {
     return <div className="py-10 text-center text-xs text-muted-foreground">该运行未修改文件</div>;
   }
   return (
     <div className="flex flex-col gap-1.5">
       {run.files.map((f) => (
-        <div key={f.path} className="rounded-xl border border-border px-3 py-2.5">
+        <button
+          key={f.path}
+          type="button"
+          onClick={() => onOpen(run.id, f.path)}
+          className="focus-ring group w-full rounded-xl border border-border px-3 py-2.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/35 hover:bg-accent/20 hover:shadow-sm"
+          aria-label={`查看 ${f.path} 的代码变化`}
+          data-task-id={taskId}
+        >
           <div className="flex items-center gap-2">
-            <FileDiff size={13} className="shrink-0 text-muted-foreground" />
+            <FileDiff size={13} className="shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
             <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{f.path}</span>
             <Badge tone={f.change === "created" ? "success" : "info"}>
               {f.change === "created" ? "新建" : "修改"}
             </Badge>
           </div>
           <div className="mt-1 pl-5 font-mono text-[11px] text-muted-foreground">{f.diffSummary}</div>
-        </div>
+        </button>
       ))}
     </div>
   );

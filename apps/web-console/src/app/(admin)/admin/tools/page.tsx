@@ -7,8 +7,8 @@
  */
 import { useState } from "react";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { Badge } from "@/components/ui/primitives";
-import { Drawer, Tabs } from "@/components/ui/overlay";
+import { Badge, FieldLabel } from "@/components/ui/primitives";
+import { Drawer, SelectMenu, Tabs } from "@/components/ui/overlay";
 import {
   AdminCell,
   AdminRow,
@@ -19,7 +19,7 @@ import {
 } from "@/features/admin/shared";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { providerNameLabel, riskLevelLabel, formatDate, formatTime } from "@/lib/format";
-import type { Tool } from "@/lib/types";
+import type { McpServer, Tool, ToolRiskLevel } from "@/lib/types";
 
 type AdminToolsTab = "registry" | "mcp";
 
@@ -27,8 +27,12 @@ export default function AdminToolsPage() {
   const s = useWorkspaceStore();
   const [tab, setTab] = useState<AdminToolsTab>("registry");
   const [selectedName, setSelectedName] = useState<string | null>(null);
+  const [selectedMcpId, setSelectedMcpId] = useState<string | null>(null);
   const selected: Tool | undefined = selectedName
     ? s.tools.find((t) => t.name === selectedName)
+    : undefined;
+  const selectedMcp: McpServer | undefined = selectedMcpId
+    ? s.mcpServers.find((server) => server.id === selectedMcpId)
     : undefined;
   const selectedVersion = selected?.versions.at(-1);
 
@@ -85,7 +89,7 @@ export default function AdminToolsPage() {
               ]}
             >
               {s.mcpServers.map((server) => (
-                <AdminRow key={server.id}>
+                <AdminRow key={server.id} onClick={() => setSelectedMcpId(server.id)}>
                   <AdminCell mono className="font-medium text-foreground">
                     {server.name}
                   </AdminCell>
@@ -146,6 +150,86 @@ export default function AdminToolsPage() {
                   ? `${formatDate(selectedVersion.publishedAt)} ${formatTime(selectedVersion.publishedAt)}`
                   : "—"}
               </DetailRow>
+            </div>
+
+            <div className="mt-4 space-y-4 rounded-xl border border-border bg-muted/15 p-4">
+              <div className="text-xs font-medium text-foreground">Stage 01 Mock 配置</div>
+              <div>
+                <FieldLabel>风险等级</FieldLabel>
+                <SelectMenu
+                  value={selected.riskLevel}
+                  options={[
+                    { value: "LOW", label: "低风险" },
+                    { value: "MEDIUM", label: "中风险" },
+                    { value: "HIGH", label: "高风险" },
+                  ]}
+                  onChange={(value) => s.setToolRiskLevel(selected.id, value as ToolRiskLevel)}
+                />
+              </div>
+              <div>
+                <FieldLabel>最新版本状态</FieldLabel>
+                <SelectMenu
+                  value={selectedVersion?.status ?? "DISABLED"}
+                  options={[
+                    { value: "ACTIVE", label: "已启用" },
+                    { value: "DISABLED", label: "已停用" },
+                  ]}
+                  onChange={(value) =>
+                    s.setToolStatus(selected.id, value as "ACTIVE" | "DISABLED")
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Drawer>
+
+      <Drawer
+        open={Boolean(selectedMcp)}
+        onClose={() => setSelectedMcpId(null)}
+        title={<span className="font-mono">{selectedMcp?.name}</span>}
+        subtitle="MCP 服务 Mock 配置"
+      >
+        {selectedMcp ? (
+          <div className="h-full overflow-y-auto px-5 py-4">
+            <div className="space-y-2.5 rounded-xl border border-border p-3.5">
+              <DetailRow label="传输协议">{selectedMcp.transport}</DetailRow>
+              <DetailRow label="工具数量">{selectedMcp.toolCount}</DetailRow>
+              <DetailRow label="最近同步">
+                {formatDate(selectedMcp.lastSyncAt)} {formatTime(selectedMcp.lastSyncAt)}
+              </DetailRow>
+            </div>
+
+            <div className="mt-4 space-y-4 rounded-xl border border-border bg-muted/15 p-4">
+              <div>
+                <FieldLabel>服务状态</FieldLabel>
+                <SelectMenu
+                  value={selectedMcp.status}
+                  options={[
+                    { value: "CONNECTED", label: "已连接" },
+                    { value: "DISABLED", label: "已停用" },
+                  ]}
+                  onChange={(value) =>
+                    s.setMcpServerStatus(selectedMcp.id, value as McpServer["status"])
+                  }
+                />
+              </div>
+              <div>
+                <FieldLabel hint="只模拟状态，不保存明文凭据">凭据状态</FieldLabel>
+                <SelectMenu
+                  value={selectedMcp.credentialStatus}
+                  options={[
+                    { value: "CONFIGURED", label: "已配置" },
+                    { value: "NOT_CONFIGURED", label: "未配置" },
+                  ]}
+                  onChange={(value) =>
+                    s.setMcpCredentialStatus(
+                      selectedMcp.id,
+                      value as McpServer["credentialStatus"],
+                    )
+                  }
+                />
+              </div>
             </div>
           </div>
         ) : null}

@@ -363,7 +363,32 @@ function seedTask(id: string, title: string, createdAt: string, updatedAt: strin
           { id: `${runId}_t1`, runId, toolName: "builtin.grep", toolVersionId: TOOL_VERSION_BY_NAME["builtin.grep"], provider: "BUILTIN", argsDigest: 'pattern="findUserOrders" path="src/"', decision: "ALLOW", status: "SUCCEEDED", resultDigest: "5 matches in 4 files", startedAt: createdAt, finishedAt: updatedAt },
           { id: `${runId}_t2`, runId, toolName: "builtin.edit", toolVersionId: TOOL_VERSION_BY_NAME["builtin.edit"], provider: "BUILTIN", argsDigest: 'file="src/repo/OrderRepository.java"', decision: "ALLOW", status: "SUCCEEDED", resultDigest: "applied 1 hunk", startedAt: createdAt, finishedAt: updatedAt },
         ],
-        files: [{ path: "src/main/java/com/acme/repo/OrderRepository.java", change: "modified", diffSummary: "+12 −4" }],
+        files: [{
+          path: "src/main/java/com/acme/repo/OrderRepository.java",
+          change: "modified",
+          diffSummary: "+12 −4",
+          before: `public List<Order> findUserOrders(List<Long> ids) {
+    return ids.stream()
+        .map(id -> orderDao.findById(id))
+        .peek(order -> order.setUser(userDao.findById(order.getUserId())))
+        .toList();
+}`,
+          after: `public List<Order> findUserOrders(List<Long> ids) {
+    if (ids.isEmpty()) {
+        return List.of();
+    }
+
+    return entityManager.createQuery("""
+        select distinct o
+        from Order o
+        join fetch o.user
+        where o.id in :ids
+        order by o.createdAt desc
+        """, Order.class)
+        .setParameter("ids", ids)
+        .getResultList();
+}`,
+        }],
         usage: { inputTokens: 4200, outputTokens: 1650, costUsd: 0.084 },
       },
     ],

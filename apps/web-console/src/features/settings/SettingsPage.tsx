@@ -1,8 +1,9 @@
 "use client";
 
 import { PageHeader } from "@/components/shell/PageHeader";
-import { Badge, Card } from "@/components/ui/primitives";
+import { Badge, Button, Card } from "@/components/ui/primitives";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
+import { Moon, Sun } from "lucide-react";
 
 /** Settings（More 入口）：演示用会话设置 + 管理员视角切换说明。 */
 export function SettingsPage() {
@@ -10,12 +11,39 @@ export function SettingsPage() {
   const setViewAsAdmin = useWorkspaceStore((s) => s.setViewAsAdmin);
   const currentUser = useWorkspaceStore((s) => s.currentUser);
   const tabs = useWorkspaceStore((s) => s.tabs);
+  const theme = useWorkspaceStore((s) => s.theme);
+  const setTheme = useWorkspaceStore((s) => s.setTheme);
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="更多 / 设置" description="演示设置（Stage 01 Mock）" />
+      <PageHeader title="设置" description="工作区偏好与 Stage 01 Mock 设置" />
       <div className="min-h-0 flex-1 overflow-y-auto bg-background/40 px-6 py-5">
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
+          <Card>
+            <div className="text-sm font-medium text-foreground">外观</div>
+            <p className="mt-1 text-xs text-muted-foreground">主题偏好保存在本地，刷新后保持。</p>
+            <div className="mt-3 inline-flex rounded-xl border border-border bg-muted/40 p-1">
+              <Button
+                size="sm"
+                variant={theme === "light" ? "secondary" : "ghost"}
+                className={theme === "light" ? "bg-card shadow-sm" : undefined}
+                onClick={() => setTheme("light")}
+              >
+                <Sun size={13} />
+                亮色
+              </Button>
+              <Button
+                size="sm"
+                variant={theme === "night" ? "secondary" : "ghost"}
+                className={theme === "night" ? "bg-card shadow-sm" : undefined}
+                onClick={() => setTheme("night")}
+              >
+                <Moon size={13} />
+                夜间
+              </Button>
+            </div>
+          </Card>
+
           <Card>
             <div className="text-sm font-medium text-foreground">当前会话</div>
             <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">

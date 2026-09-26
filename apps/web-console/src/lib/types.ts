@@ -264,6 +264,15 @@ export interface RunUsage {
   costUsd: number;
 }
 
+export interface FileChange {
+  path: string;
+  change: "created" | "modified";
+  diffSummary: string;
+  /** Stage 01 mock only：用于中央 Diff Tab 展示，不代表后端最终合同。 */
+  before: string;
+  after: string;
+}
+
 export interface Run {
   id: string;
   taskId: string;
@@ -274,7 +283,7 @@ export interface Run {
   status: RunStatus;
   events: RunEvent[];
   toolCalls: ToolCall[];
-  files: { path: string; change: "created" | "modified"; diffSummary: string }[];
+  files: FileChange[];
   usage: RunUsage;
   approvalId?: string;
   startedAt?: string;
@@ -362,7 +371,7 @@ export interface AuditEntry {
 
 // ---------- Workspace tabs（Stage 01 only，前端本地状态） ----------
 
-export type TabKind = "conversation" | "task" | "composer";
+export type TabKind = "conversation" | "task" | "composer" | "file-diff";
 
 export interface WorkspaceTab {
   /** 稳定 tab 身份：`conv:{id}` / `task:{id}` / `composer` */
@@ -370,6 +379,10 @@ export interface WorkspaceTab {
   kind: TabKind;
   refId: string;
   title: string;
+  /** file-diff tab 使用；其它 tab 留空。 */
+  taskId?: string;
+  runId?: string;
+  path?: string;
 }
 
 /** 每 Tab 草稿与滚动状态（切 Tab 不丢上下文） */

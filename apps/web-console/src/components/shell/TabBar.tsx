@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { MessageSquare, Plus, SquareCheckBig, X } from "lucide-react";
+import { FileDiff, MessageSquare, Plus, SquareCheckBig, X } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { cn } from "@/lib/utils";
+import type { WorkspaceTab } from "@/lib/types";
 
 /**
  * IDE-style workspace tab bar (§5.2). Tabs represent Conversation / Task
@@ -17,15 +18,18 @@ export function TabBar() {
   const closeTab = useWorkspaceStore((s) => s.closeTab);
   const router = useRouter();
 
-  function routeOf(key: string, kind: string, refId: string): string {
-    if (kind === "conversation") return `/conversation/${refId}`;
-    if (kind === "task") return `/task/${refId}`;
+  function routeOf(tab: WorkspaceTab): string {
+    if (tab.kind === "conversation") return `/conversation/${tab.refId}`;
+    if (tab.kind === "task") return `/task/${tab.refId}`;
+    if (tab.kind === "file-diff" && tab.taskId && tab.runId && tab.path) {
+      return `/diff?taskId=${encodeURIComponent(tab.taskId)}&runId=${encodeURIComponent(tab.runId)}&path=${encodeURIComponent(tab.path)}`;
+    }
     return "/task/new";
   }
 
-  function onTabClick(key: string, kind: string, refId: string) {
-    setActiveTab(key);
-    router.push(routeOf(key, kind, refId));
+  function onTabClick(tab: WorkspaceTab) {
+    setActiveTab(tab.key);
+    router.push(routeOf(tab));
   }
 
   function onClose(e: React.MouseEvent, key: string) {
@@ -36,7 +40,7 @@ export function TabBar() {
     closeTab(key);
     if (wasActive) {
       const neighbor = remaining[Math.min(idx, remaining.length - 2)];
-      if (neighbor) router.push(routeOf(neighbor.key, neighbor.kind, neighbor.refId));
+      if (neighbor) router.push(routeOf(neighbor));
       // 关闭最后一个 Tab 时停留在当前页面（无路由跳转）
     }
   }
@@ -51,9 +55,9 @@ export function TabBar() {
           return (
             <div
               key={tab.key}
-              onClick={() => onTabClick(tab.key, tab.kind, tab.refId)}
+              onClick={() => onTabClick(tab)}
               className={cn(
-                "group flex h-8 max-w-56 min-w-32 shrink-0 cursor-pointer items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 text-[12px] transition-colors",
+                "group flex h-8 max-w-56 min-w-32 shrink-0 cursor-pointer items-center gap-1.5 rounded-t-lg border border-b-0 px-2.5 text-[12px] transition-all duration-200",
                 active
                   ? "border-border bg-card text-foreground"
                   : "border-transparent text-muted-foreground hover:bg-card/60 hover:text-foreground",
@@ -61,6 +65,8 @@ export function TabBar() {
             >
               {tab.kind === "conversation" ? (
                 <MessageSquare size={12} className="shrink-0 text-muted-foreground" />
+              ) : tab.kind === "file-diff" ? (
+                <FileDiff size={12} className="shrink-0 text-primary" />
               ) : (
                 <SquareCheckBig size={12} className="shrink-0 text-muted-foreground" />
               )}

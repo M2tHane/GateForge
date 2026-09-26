@@ -33,9 +33,9 @@ export function Drawer({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-foreground/25" onClick={onClose} />
+      <div className="motion-fade-in absolute inset-0 bg-foreground/25" onClick={onClose} />
       <div
-        className="absolute inset-y-0 right-0 flex flex-col border-l border-border bg-card shadow-md"
+        className="motion-slide-in-right absolute inset-y-0 right-0 flex flex-col border-l border-border bg-card shadow-md"
         style={{ width: `min(${width}px, 92vw)` }}
       >
         <div className="flex items-start justify-between border-b border-border px-5 py-4">
@@ -75,8 +75,8 @@ export function Modal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-foreground/25" onClick={onClose} />
-      <div className="surface-elevated relative z-10 w-full max-w-md">
+      <div className="motion-fade-in absolute inset-0 bg-foreground/25" onClick={onClose} />
+      <div className="motion-scale-in surface-elevated relative z-10 w-full max-w-md">
         <div className="border-b border-border px-5 py-4 text-sm font-semibold text-foreground">{title}</div>
         <div className="px-5 py-4 text-sm text-foreground">{children}</div>
         {footer ? <div className="flex justify-end gap-2 border-t border-border px-5 py-3">{footer}</div> : null}

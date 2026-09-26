@@ -4,8 +4,8 @@
  * Agents 页面（DESIGN.md §9 / §21）：Personal Agent Card Grid。
  *
  * Card 至少展示 Avatar / Name / Created At / 状态（可用 · 已停用）/ 主操作。
- * 左侧固定为 Agent 生命周期动作：DISABLED → [启动]，ENABLED → [停用]；
- * 右侧 [启动任务] 仅在 ENABLED 时出现（预选该 Agent 的 New Task Composer）。
+ * 操作统一右对齐：DISABLED → [启用] + 灰色禁用的 [启动任务]；
+ * ENABLED → [停用] + 可用的 [启动任务]。
  * 不再使用三点菜单承载主要操作。
  *
  * 渲染契约：mock store 的嵌套变更原地发生，这里按 store 约定整店订阅，
@@ -95,8 +95,7 @@ export function AgentsPageView() {
                     </div>
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-                    {/* 左侧永远是生命周期动作：DISABLED → 启动，ENABLED → 停用 */}
+                  <div className="mt-auto flex items-center justify-end gap-2 pt-1">
                     {enabled ? (
                       <Button
                         size="sm"
@@ -117,22 +116,21 @@ export function AgentsPageView() {
                           useWorkspaceStore.getState().setAgentStatus(agent.id, "ENABLED");
                         }}
                       >
-                        启动
+                        启用
                       </Button>
                     )}
-                    {/* 右侧：仅 ENABLED 时出现「启动任务」（进入 New Task Composer 并预选） */}
-                    {enabled ? (
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          nav.newTask(agent.id);
-                        }}
-                      >
-                        启动任务
-                      </Button>
-                    ) : null}
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={!enabled}
+                      className="disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (enabled) nav.newTask(agent.id);
+                      }}
+                    >
+                      启动任务
+                    </Button>
                   </div>
                 </Card>
               );

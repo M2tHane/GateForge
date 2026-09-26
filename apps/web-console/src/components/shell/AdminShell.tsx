@@ -42,7 +42,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   if (!hydrated) {
     return (
-      <div className="app-shell flex h-screen items-center justify-center">
+      <div className={cn("app-shell flex h-screen items-center justify-center", store.theme === "night" && "dark")}>
         <div className="text-sm text-muted-foreground">GateForge Admin…</div>
       </div>
     );
@@ -51,7 +51,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   // 无管理能力：不暴露治理导航，直接给出回退入口
   if (!canAdmin) {
     return (
-      <div className="app-shell flex h-screen items-center justify-center">
+      <div className={cn("app-shell flex h-screen items-center justify-center", store.theme === "night" && "dark")}>
         <EmptyState
           title="需要管理员权限"
           description="Administration 仅对 Workspace Admin / 授权角色开放。"
@@ -70,7 +70,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="app-shell flex h-screen overflow-hidden">
+    <div className={cn("app-shell flex h-screen overflow-hidden", store.theme === "night" && "dark")}>
       <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
         {/* Logo */}
         <div className="flex items-center gap-2 px-4 pb-3 pt-4">

@@ -75,6 +75,9 @@ export function convTabKey(id: string) {
 export function taskTabKey(id: string) {
   return `task:${id}`;
 }
+export function fileDiffTabKey(taskId: string, runId: string, path: string) {
+  return `diff:${taskId}:${runId}:${encodeURIComponent(path)}`;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -110,6 +113,7 @@ interface WorkspaceStore {
   // data
   currentUser: User;
   viewAsAdmin: boolean;
+  theme: "light" | "night";
   agents: Record<string, Agent>;
   skills: Record<string, Skill>;
   categories: SkillCategory[];
@@ -133,6 +137,7 @@ interface WorkspaceStore {
   openConversationTab: (convId: string) => string;
   openTaskTab: (taskId: string) => string;
   openComposerTab: (agentId?: string | null) => string;
+  openFileDiffTab: (taskId: string, runId: string, path: string) => string;
   closeTab: (key: string) => void;
   setActiveTab: (key: string) => void;
   setTabDraft: (key: string, draft: string) => void;
@@ -176,8 +181,24 @@ interface WorkspaceStore {
   cloneSkill: (sourceSkillVersionId: string) => string;
   setSkillEnabled: (skillId: string, enabled: boolean) => void;
 
+  // ---- administration mock controls ----
+  addModelCandidate: (input: Omit<ModelCandidate, "id">) => string;
+  updateModelCandidate: (id: string, patch: Partial<Omit<ModelCandidate, "id">>) => void;
+  setToolRiskLevel: (toolId: string, riskLevel: ToolRiskLevel) => void;
+  setToolStatus: (toolId: string, status: "ACTIVE" | "DISABLED") => void;
+  setMcpServerStatus: (id: string, status: McpServer["status"]) => void;
+  setMcpCredentialStatus: (id: string, status: McpServer["credentialStatus"]) => void;
+  addSkillCategory: (name: string) => string;
+  updateSkillCategory: (id: string, patch: Partial<Pick<SkillCategory, "name" | "sortOrder">>) => void;
+  moveSkillCategory: (id: string, direction: "up" | "down") => void;
+  addPolicy: (input: Omit<PolicyRule, "id">) => string;
+  updatePolicy: (id: string, patch: Partial<Omit<PolicyRule, "id">>) => void;
+  addTeam: (input: Omit<TeamInfo, "id">) => string;
+  updateTeam: (id: string, patch: Partial<Omit<TeamInfo, "id">>) => void;
+
   // ---- session ----
   setViewAsAdmin: (v: boolean) => void;
+  setTheme: (theme: "light" | "night") => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceStore>()(
@@ -403,6 +424,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       return {
         currentUser: CURRENT_USER,
         viewAsAdmin: false,
+        theme: "light",
         agents: toRecord(AGENTS),
         skills: toRecord(SKILLS),
         categories: SKILL_CATEGORIES,
@@ -444,6 +466,28 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             if (agentId !== undefined) s.composerAgentId = agentId;
           });
           return COMPOSER_TAB_KEY;
+        },
+        openFileDiffTab: (taskId, runId, path) => {
+          const key = fileDiffTabKey(taskId, runId, path);
+          mutate((s) => {
+            if (!s.tabs.some((t) => t.key === key)) {
+              s.tabs = [
+                ...s.tabs,
+                {
+                  key,
+                  kind: "file-diff",
+                  refId: key,
+                  title: path.split("/").at(-1) ?? path,
+                  taskId,
+                  runId,
+                  path,
+                },
+              ];
+            }
+            s.activeTabKey = key;
+            if (!s.tabUi[key]) s.tabUi[key] = { draft: "", scrollTop: 0 };
+          });
+          return key;
         },
         closeTab: (key) =>
           mutate((s) => {
@@ -948,10 +992,99 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             if (skill) skill.enabledByMe = enabled;
           }),
 
+        // ---------- administration mock controls ----------
+        addModelCandidate: (input) => {
+          const id = nid("mp");
+          mutate((s) => {
+            s.modelCandidates = [...s.modelCandidates, { id, ...input }];
+          });
+          return id;
+        },
+        updateModelCandidate: (id, patch) =>
+          mutate((s) => {
+            s.modelCandidates = s.modelCandidates.map((model) =>
+              model.id === id ? { ...model, ...patch } : model,
+            );
+          }),
+        setToolRiskLevel: (toolId, riskLevel) =>
+          mutate((s) => {
+            const tool = s.tools.find((item) => item.id === toolId);
+            if (tool) tool.riskLevel = riskLevel;
+          }),
+        setToolStatus: (toolId, status) =>
+          mutate((s) => {
+            const tool = s.tools.find((item) => item.id === toolId);
+            const version = tool?.versions.at(-1);
+            if (version) version.status = status;
+          }),
+        setMcpServerStatus: (id, status) =>
+          mutate((s) => {
+            const server = s.mcpServers.find((item) => item.id === id);
+            if (server) server.status = status;
+          }),
+        setMcpCredentialStatus: (id, status) =>
+          mutate((s) => {
+            const server = s.mcpServers.find((item) => item.id === id);
+            if (server) server.credentialStatus = status;
+          }),
+        addSkillCategory: (name) => {
+          const id = nid("cat");
+          mutate((s) => {
+            const maxSort = Math.max(0, ...s.categories.map((item) => item.sortOrder));
+            s.categories = [...s.categories, { id, name, sortOrder: maxSort + 10 }];
+          });
+          return id;
+        },
+        updateSkillCategory: (id, patch) =>
+          mutate((s) => {
+            s.categories = s.categories.map((category) =>
+              category.id === id ? { ...category, ...patch } : category,
+            );
+          }),
+        moveSkillCategory: (id, direction) =>
+          mutate((s) => {
+            const ordered = [...s.categories].sort((a, b) => a.sortOrder - b.sortOrder);
+            const index = ordered.findIndex((item) => item.id === id);
+            const swapIndex = direction === "up" ? index - 1 : index + 1;
+            if (index < 0 || swapIndex < 0 || swapIndex >= ordered.length) return;
+            const currentOrder = ordered[index].sortOrder;
+            ordered[index].sortOrder = ordered[swapIndex].sortOrder;
+            ordered[swapIndex].sortOrder = currentOrder;
+            s.categories = ordered;
+          }),
+        addPolicy: (input) => {
+          const id = nid("policy");
+          mutate((s) => {
+            s.policies = [...s.policies, { id, ...input }];
+          });
+          return id;
+        },
+        updatePolicy: (id, patch) =>
+          mutate((s) => {
+            s.policies = s.policies.map((policy) =>
+              policy.id === id ? { ...policy, ...patch } : policy,
+            );
+          }),
+        addTeam: (input) => {
+          const id = nid("team");
+          mutate((s) => {
+            s.teams = [...s.teams, { id, ...input }];
+          });
+          return id;
+        },
+        updateTeam: (id, patch) =>
+          mutate((s) => {
+            s.teams = s.teams.map((team) => (team.id === id ? { ...team, ...patch } : team));
+          }),
+
         // ---------- session ----------
         setViewAsAdmin: (v) =>
           mutate((s) => {
             s.viewAsAdmin = v;
+          }),
+        setTheme: (theme) =>
+          mutate((s) => {
+            s.theme = theme;
           }),
       };
     },

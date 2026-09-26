@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   activeRunOf,
   currentRunOf,
+  fileDiffTabKey,
   taskTabKey,
   useWorkspaceStore,
 } from "./workspace-store";
@@ -249,5 +250,52 @@ describe("tab model", () => {
     expect(useWorkspaceStore.getState().tabs.some((t) => t.key === "composer")).toBe(false);
     void taskTabKey;
     void activeRunOf;
+  });
+
+  it("opens one deduplicated file diff tab and activates it", () => {
+    const path = "src/main/java/com/acme/repo/OrderRepository.java";
+    const store = useWorkspaceStore.getState();
+    const first = store.openFileDiffTab("task_seed_1", "task_seed_1_run1", path);
+    const second = useWorkspaceStore.getState().openFileDiffTab(
+      "task_seed_1",
+      "task_seed_1_run1",
+      path,
+    );
+
+    expect(first).toBe(second);
+    expect(first).toBe(fileDiffTabKey("task_seed_1", "task_seed_1_run1", path));
+    const state = useWorkspaceStore.getState();
+    expect(state.tabs.filter((t) => t.kind === "file-diff" && t.key === first)).toHaveLength(1);
+    expect(state.activeTabKey).toBe(first);
+    expect(state.tabs.find((t) => t.key === first)?.title).toBe("OrderRepository.java");
+  });
+});
+
+describe("theme", () => {
+  it("switches between light and night", () => {
+    const store = useWorkspaceStore.getState();
+    store.setTheme("night");
+    expect(useWorkspaceStore.getState().theme).toBe("night");
+    useWorkspaceStore.getState().setTheme("light");
+    expect(useWorkspaceStore.getState().theme).toBe("light");
+  });
+});
+
+describe("administration mock settings", () => {
+  it("updates policies and MCP connection state locally", () => {
+    const store = useWorkspaceStore.getState();
+    const policy = store.policies[0];
+    const mcp = store.mcpServers[0];
+
+    store.updatePolicy(policy.id, { enabled: !policy.enabled, effect: "DENY" });
+    expect(useWorkspaceStore.getState().policies.find((p) => p.id === policy.id)).toMatchObject({
+      enabled: !policy.enabled,
+      effect: "DENY",
+    });
+
+    store.setMcpServerStatus(mcp.id, "DISABLED");
+    expect(useWorkspaceStore.getState().mcpServers.find((server) => server.id === mcp.id)?.status).toBe(
+      "DISABLED",
+    );
   });
 });
