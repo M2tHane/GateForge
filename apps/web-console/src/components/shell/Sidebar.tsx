@@ -2,20 +2,17 @@
 
 /**
  * Employee Workspace Sidebar（DESIGN.md §5.1）：
- * 核心入口（Agents / Skills）+ 辅助入口（我的审批 / 管理员 / More）
- * + History（全部 / 任务 / 会话 过滤 + 今天 / 昨天 / 更早 分组）。
+ * 核心入口（Agents / Skills）+ 辅助入口（我的审批 / 管理员 / 更多 / 设置）
+ * + History（全部 / 任务 / 会话 过滤；紧凑单行列表，updatedAt DESC，无日期分组）。
  * Administration 不在此展开 —— 「管理员」进入独立 Admin Shell（§5.4）。
  */
 import { useMemo, useState } from "react";
-import { Bot, Building2, FolderKanban, LayoutGrid, MessageSquarePlus, MoreHorizontal, ShieldCheck, Sparkles, SquareCheckBig } from "lucide-react";
+import { Bot, Building2, FolderKanban, LayoutGrid, MessageSquare, MessageSquarePlus, MoreHorizontal, ShieldCheck, Sparkles, SquareCheckBig } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { useWorkspaceNav, hasAdminCapability } from "@/components/shell/nav";
 import { Avatar } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
-import { buildHistoryGroups, HISTORY_FILTERS, type HistoryFilter } from "@/lib/history";
-import type { DayGroup } from "@/lib/format";
-
-const DAY_GROUP_LABEL: Record<DayGroup, string> = { today: "今天", yesterday: "昨天", earlier: "更早" };
+import { buildHistoryItems, HISTORY_FILTERS, type HistoryFilter } from "@/lib/history";
 
 export function Sidebar() {
   // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
@@ -32,8 +29,8 @@ export function Sidebar() {
   );
 
   // 历史混排 + 视图过滤（View State，不动业务数据）
-  const historyGroups = useMemo(
-    () => buildHistoryGroups(conversations, tasks, agents, historyFilter),
+  const historyItems = useMemo(
+    () => buildHistoryItems(conversations, tasks, agents, historyFilter),
     [conversations, tasks, agents, historyFilter],
   );
 
@@ -88,7 +85,7 @@ export function Sidebar() {
         {canAdmin ? (
           <SidebarLink icon={<Building2 size={15} />} label="管理员" onClick={() => nav.admin()} />
         ) : null}
-        <SidebarLink icon={<MoreHorizontal size={15} />} label="More / Settings" onClick={() => nav.go("/settings")} />
+        <SidebarLink icon={<MoreHorizontal size={15} />} label="更多 / 设置" onClick={() => nav.go("/settings")} />
       </nav>
 
       {/* History：全部 / 任务 / 会话 过滤（默认全部） */}
@@ -111,39 +108,42 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* 紧凑单行列表（updatedAt DESC，无日期分组）：标题截断，类型图标固定在行尾 */}
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2">
-        {(["today", "yesterday", "earlier"] as DayGroup[]).map((group) =>
-          historyGroups[group].length > 0 ? (
-            <div key={group} className="mb-2">
-              <div className="px-2 pb-1 pt-1.5 text-[11px] font-medium text-muted-foreground/80">
-                {DAY_GROUP_LABEL[group]}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {historyGroups[group].map((item) => (
-                  <button
-                    key={item.key}
-                    onClick={() =>
-                      item.kind === "conversation" ? nav.openConversation(item.id) : nav.openTask(item.id)
-                    }
-                    className={cn(
-                      "group rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent",
-                      isActive(item.kind, item.id) && "bg-sidebar-accent",
-                    )}
-                  >
-                    <div className="truncate text-[13px] text-sidebar-foreground">{item.title}</div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                      {item.kind === "task" && item.agentEmoji ? (
-                        <Avatar emoji={item.agentEmoji} color="#64748b" size="sm" />
-                      ) : (
-                        <Bot size={11} className="text-muted-foreground" />
-                      )}
-                      <span className="truncate">{item.kind === "conversation" ? "会话" : item.agentName ?? "任务"}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null,
+        {historyItems.length === 0 ? (
+          <div className="px-2 py-3 text-[11px] text-muted-foreground/70">暂无记录</div>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {historyItems.map((item) => (
+              <button
+                key={item.key}
+                onClick={() =>
+                  item.kind === "conversation" ? nav.openConversation(item.id) : nav.openTask(item.id)
+                }
+                title={item.kind === "conversation" ? "会话" : item.agentName ?? "任务"}
+                className={cn(
+                  "group flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-left transition-colors hover:bg-sidebar-accent",
+                  isActive(item.kind, item.id) && "bg-sidebar-accent",
+                )}
+              >
+                <span className="min-w-0 flex-1 truncate text-[13px] text-sidebar-foreground">
+                  {item.title}
+                </span>
+                {item.kind === "task" && item.agentEmoji ? (
+                  <Avatar
+                    emoji={item.agentEmoji}
+                    color="#64748b"
+                    size="xs"
+                    className="border-transparent"
+                  />
+                ) : item.kind === "task" ? (
+                  <Bot size={12} className="shrink-0 text-muted-foreground" />
+                ) : (
+                  <MessageSquare size={12} className="shrink-0 text-muted-foreground" />
+                )}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 

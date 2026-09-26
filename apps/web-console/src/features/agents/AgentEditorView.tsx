@@ -16,8 +16,8 @@ import { useParams, useRouter } from "next/navigation";
 import { Info } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { SkillPickerDrawer } from "@/components/skill-picker/SkillPickerDrawer";
-import { Modal, Tabs } from "@/components/ui/overlay";
-import { Badge, Button, EmptyState, FieldLabel, Input, Select, Textarea } from "@/components/ui/primitives";
+import { Modal, SelectMenu, Tabs } from "@/components/ui/overlay";
+import { Badge, Button, EmptyState, FieldLabel, Input, Textarea } from "@/components/ui/primitives";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import {
   draftVersionOf,
@@ -32,11 +32,11 @@ type EditorTab = "basic" | "engine" | "model" | "skills" | "tools" | "review";
 
 const EDITOR_TABS: { id: EditorTab; label: string }[] = [
   { id: "basic", label: "基本信息" },
-  { id: "engine", label: "Engine" },
-  { id: "model", label: "Model" },
-  { id: "skills", label: "Skills" },
-  { id: "tools", label: "Tools" },
-  { id: "review", label: "Review" },
+  { id: "engine", label: "引擎" },
+  { id: "model", label: "模型" },
+  { id: "skills", label: "技能" },
+  { id: "tools", label: "工具" },
+  { id: "review", label: "发布确认" },
 ];
 
 function Hint({ children }: { children: React.ReactNode }) {
@@ -150,7 +150,7 @@ export function AgentEditorView() {
           {activeTab === "basic" ? (
             <div className="mt-5 flex flex-col gap-5">
               <div>
-                <FieldLabel hint="必填">Name</FieldLabel>
+                <FieldLabel hint="必填">名称</FieldLabel>
                 <Input
                   value={agent.name}
                   onChange={(e) =>
@@ -160,7 +160,7 @@ export function AgentEditorView() {
                 />
               </div>
               <div>
-                <FieldLabel hint="展示用，可选">Description</FieldLabel>
+                <FieldLabel hint="展示用，可选">描述</FieldLabel>
                 <Textarea
                   rows={3}
                   value={agent.description}
@@ -173,7 +173,7 @@ export function AgentEditorView() {
                 />
               </div>
               <div>
-                <FieldLabel hint="emoji + 颜色">Avatar</FieldLabel>
+                <FieldLabel hint="emoji + 颜色">头像</FieldLabel>
                 <div className="flex items-center gap-3">
                   <Input
                     className="w-24 text-center"
@@ -206,28 +206,26 @@ export function AgentEditorView() {
 
           {activeTab === "engine" ? (
             <div className="mt-5 flex flex-col gap-2">
-              <FieldLabel>Engine</FieldLabel>
+              <FieldLabel>引擎</FieldLabel>
               <div className="surface flex items-center justify-between px-3.5 py-3">
                 <span className="text-sm font-medium text-foreground">pi</span>
                 <Badge tone="neutral">平台提供</Badge>
               </div>
-              <Hint>Engine 由平台提供（当前为 pi），员工不可选择或更换。</Hint>
+              <Hint>引擎由平台提供（当前为 pi），员工不可选择或更换。</Hint>
             </div>
           ) : null}
 
           {activeTab === "model" ? (
             <div className="mt-5 flex flex-col gap-2">
-              <FieldLabel>Model</FieldLabel>
-              <Select
+              <FieldLabel>模型</FieldLabel>
+              <SelectMenu
                 value={manifest.modelPolicyId}
-                onChange={(e) => patchManifest({ modelPolicyId: e.target.value })}
-              >
-                {store.modelCandidates.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.label}
-                  </option>
-                ))}
-              </Select>
+                options={store.modelCandidates.map((candidate) => ({
+                  value: candidate.id,
+                  label: candidate.label,
+                }))}
+                onChange={(modelPolicyId) => patchManifest({ modelPolicyId })}
+              />
               <Hint>
                 候选来自「我当前允许使用哪些模型」（Model Policy 候选集）；Provider
                 与凭证由管理员统一管理，员工不可见、不可编辑。
@@ -238,11 +236,11 @@ export function AgentEditorView() {
           {activeTab === "skills" ? (
             <div className="mt-5 flex flex-col gap-3">
               <FieldLabel hint={manifest.skills.length > 0 ? `已选 ${manifest.skills.length} 个` : undefined}>
-                Skills
+                技能
               </FieldLabel>
               {manifest.skills.length === 0 ? (
                 <div className="surface px-3.5 py-4 text-xs text-muted-foreground">
-                  尚未绑定 Skill。可从统一 Skill Picker 选择平台 / 团队 / 我的 Skill。
+                  尚未绑定技能。可从统一技能选择器中选择平台 / 团队 / 我的技能。
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
@@ -275,7 +273,7 @@ export function AgentEditorView() {
               )}
               <div>
                 <Button size="sm" onClick={() => setPickerOpen(true)}>
-                  添加 / 调整 Skills
+                  添加 / 调整技能
                 </Button>
                 <Hint>
                   绑定 exact SkillVersion（当前已发布版本）；源 Skill 后续更新不会改变本次绑定。
@@ -305,7 +303,7 @@ export function AgentEditorView() {
           {activeTab === "tools" ? (
             <div className="mt-5 flex flex-col gap-5">
               <div>
-                <FieldLabel>Allowed Built-in Tools</FieldLabel>
+                <FieldLabel>允许的内置工具</FieldLabel>
                 <div className="flex flex-col gap-2">
                   {builtinTools.map((tool) => {
                     const checked = manifest.tools.some((mt) =>
@@ -323,7 +321,7 @@ export function AgentEditorView() {
                 </div>
               </div>
               <div>
-                <FieldLabel>Allowed MCP Tools</FieldLabel>
+                <FieldLabel>允许的 MCP 工具</FieldLabel>
                 <div className="flex flex-col gap-2">
                   {mcpTools.map((tool) => {
                     const checked = manifest.tools.some((mt) =>
@@ -350,11 +348,11 @@ export function AgentEditorView() {
           {activeTab === "review" ? (
             <div className="mt-5 flex flex-col gap-4">
               <div className="surface divide-y divide-border px-4">
-                <ReviewRow label="Name">{agent.name}</ReviewRow>
-                <ReviewRow label="Engine">pi</ReviewRow>
-                <ReviewRow label="Model">{modelLabel(store.modelCandidates, manifest.modelPolicyId)}</ReviewRow>
-                <ReviewRow label="Skills">{manifest.skills.length} 个</ReviewRow>
-                <ReviewRow label="Tools">
+                <ReviewRow label="名称">{agent.name}</ReviewRow>
+                <ReviewRow label="引擎">pi</ReviewRow>
+                <ReviewRow label="模型">{modelLabel(store.modelCandidates, manifest.modelPolicyId)}</ReviewRow>
+                <ReviewRow label="技能">{manifest.skills.length} 个</ReviewRow>
+                <ReviewRow label="工具">
                   {manifest.tools.length} 个（内置{" "}
                   {manifest.tools.filter((t) => {
                     const tool = toolByVersionId(store.tools, t.toolVersionId);
@@ -370,11 +368,11 @@ export function AgentEditorView() {
               </div>
               <div>
                 <Button variant="primary" disabled={!canPublish} onClick={() => setPublishOpen(true)}>
-                  Publish
+                  发布
                 </Button>
                 <Hint>
                   发布将生成 {nextVersion}；发布后该版本只读，如需修改需基于它创建新版本。
-                  {canPublish ? "" : " 请先填写 Agent Name。"}
+                  {canPublish ? "" : " 请先填写 Agent 名称。"}
                 </Hint>
               </div>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Skill Categories（DESIGN.md §16）：Category 骨架列表。
+ * 技能分类（DESIGN.md §16）：Category 骨架列表。
  * 关联 Skill 数量从 store 的 skills 实时统计。
  */
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -16,10 +16,10 @@ export default function AdminSkillCategoriesPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Skill Categories" description="Skill 分类管理（普通用户只读）" />
+      <PageHeader title="技能分类" description="技能分类管理（普通用户只读）" />
       <div className="min-h-0 flex-1 overflow-y-auto bg-background/40 px-6 py-5">
         <div className="mx-auto max-w-4xl">
-          <AdminTable columns={["Category", "排序", "关联 Skill 数量"]}>
+          <AdminTable columns={["分类", "排序", "关联技能数量"]}>
             {categories.map((cat) => (
               <AdminRow key={cat.id}>
                 <AdminCell className="font-medium text-foreground">{cat.name}</AdminCell>

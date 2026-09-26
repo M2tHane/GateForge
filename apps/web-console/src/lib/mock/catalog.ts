@@ -353,11 +353,11 @@ function seedTask(id: string, title: string, createdAt: string, updatedAt: strin
         id: runId, taskId: id, index: 1, agentVersionId: CODING_PUBLISHED.id, status: "COMPLETED",
         startedAt: createdAt, finishedAt: updatedAt,
         events: [
-          { id: `${runId}_e1`, runId, type: "state", title: "Run 开始（CREATED → RUNNING）", at: createdAt },
+          { id: `${runId}_e1`, runId, type: "state", title: "运行开始（CREATED → RUNNING）", at: createdAt },
           { id: `${runId}_e2`, runId, type: "model_call", title: "模型调用 gpt-5.2：生成修复计划", detail: "input 1.2k / output 380 tokens", at: createdAt },
           { id: `${runId}_e3`, runId, type: "tool_call", title: "builtin.grep 搜索 findUserOrders 调用点", toolName: "builtin.grep", decision: "ALLOW", at: createdAt },
           { id: `${runId}_e4`, runId, type: "file", title: "修改 OrderRepository.java", detail: "+12 −4", at: updatedAt },
-          { id: `${runId}_e5`, runId, type: "state", title: "Run 完成（RUNNING → COMPLETED）", at: updatedAt },
+          { id: `${runId}_e5`, runId, type: "state", title: "运行完成（RUNNING → COMPLETED）", at: updatedAt },
         ],
         toolCalls: [
           { id: `${runId}_t1`, runId, toolName: "builtin.grep", toolVersionId: TOOL_VERSION_BY_NAME["builtin.grep"], provider: "BUILTIN", argsDigest: 'pattern="findUserOrders" path="src/"', decision: "ALLOW", status: "SUCCEEDED", resultDigest: "5 matches in 4 files", startedAt: createdAt, finishedAt: updatedAt },

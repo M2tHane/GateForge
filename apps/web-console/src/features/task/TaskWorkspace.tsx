@@ -5,14 +5,15 @@ import { useParams } from "next/navigation";
 import { Bot, CheckCircle2, Loader2 } from "lucide-react";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatScrollArea, MessageList } from "@/components/chat/MessageList";
-import { Avatar, Badge, EmptyState } from "@/components/ui/primitives";
+import { Avatar, Badge, Chip, EmptyState } from "@/components/ui/primitives";
 import { activeRunOf, taskTabKey, useWorkspaceStore } from "@/lib/store/workspace-store";
 import { runStatusLabel } from "@/lib/format";
 import { Inspector, WaitingApprovalBanner } from "@/features/task/Inspector";
 
 /**
- * Existing Task Workspace（§7.2）：Task 创建后固定 Agent · Pinned Version，
- * 底部为只读身份展示（无 ▾、无 Switch Agent）。聊天流顶部轻量展示当前 Run 状态。
+ * Existing Task Workspace（§7.2 / §21）：Task 创建后固定 Agent · exact 版本。
+ * 输入框上方为只读 Agent Chip（无 ×、不可切换、不显示版本号）。
+ * 聊天流顶部轻量展示当前 Run 状态。
  */
 export function TaskWorkspace() {
   const params = useParams<{ id: string }>();
@@ -37,7 +38,6 @@ export function TaskWorkspace() {
   }, [task, taskId]);
 
   const currentRun = useMemo(() => (task ? activeRunOf(task) ?? task.runs.at(-1) : undefined), [task]);
-  const pinnedVersion = agent?.versions.find((v) => v.id === task?.agentVersionId);
 
   if (!task || !agent) {
     return (
@@ -72,7 +72,7 @@ export function TaskWorkspace() {
             <Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} />
             <div className="min-w-0">
               <div className="truncate text-[13px] font-medium text-foreground">{task.title}</div>
-              <div className="text-[11px] text-muted-foreground">Task · 固定 Agent 工作上下文</div>
+              <div className="text-[11px] text-muted-foreground">任务 · 固定 Agent 工作上下文</div>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -93,7 +93,7 @@ export function TaskWorkspace() {
                 ) : runStatus === "COMPLETED" ? (
                   <CheckCircle2 size={11} />
                 ) : null}
-                {`Run #${currentRun?.index} · ${runStatusLabel(runStatus)}`}
+                {`运行 #${currentRun?.index} · ${runStatusLabel(runStatus)}`}
               </Badge>
             ) : null}
           </div>
@@ -112,7 +112,7 @@ export function TaskWorkspace() {
               <div className="py-20 text-center">
                 <div className="text-sm font-medium text-foreground">告诉 Agent 你要完成什么</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  每条新指令会开始一个新 Run；执行进度只显示摘要，完整 Trace 在右侧 Inspector
+                  每条新指令会开始一次新运行；执行进度只显示摘要，完整链路在右侧执行详情
                 </div>
               </div>
             }
@@ -123,28 +123,26 @@ export function TaskWorkspace() {
           <WaitingApprovalBanner taskId={taskId} onOpenInspector={() => setInspectorCollapsed(false)} />
           {busyHint ? (
             <div className="mb-2 rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
-              当前 Run #{currentRun?.index} 尚未结束（{runStatusLabel(currentRun?.status ?? "RUNNING")}）——等它完成后再发送新指令。
+              当前运行 #{currentRun?.index} 尚未结束（{runStatusLabel(currentRun?.status ?? "RUNNING")}）——等它完成后再发送新指令。
             </div>
           ) : null}
-          {/* Existing Task：Agent 只读身份展示，不显示 ▾、不提供 Switch（P17） */}
+          {/* Existing Task：Agent 只读 Chip——无 ×、不可切换、不显示版本号（P17 / §21） */}
           <ChatInput
             value={draft}
             onChange={(v) => useWorkspaceStore.getState().setTabDraft(tabKey, v)}
             onSubmit={onSubmit}
             placeholder="继续告诉 Agent…"
             footer={
-              <div className="flex items-center gap-2" title="Task 创建后固定该 Agent 与版本（不可切换）">
-                <Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} size="sm" />
-                <span className="text-xs font-medium text-foreground">{agent.name}</span>
-                <span className="text-muted-foreground">·</span>
-                <Badge tone="info">{pinnedVersion?.version ?? "—"}</Badge>
-                <span className="text-[10px] text-muted-foreground/70">Pinned Version</span>
-              </div>
+              <Chip
+                icon={<Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} size="xs" />}
+                label={agent.name}
+                title="任务创建后固定该 Agent 与其精确版本（不可切换；如需更换请新建任务）"
+              />
             }
           />
           <div className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground/70">
             <Bot size={11} />
-            要换 Agent？请使用左侧「＋ 新建任务」——当前 Task 固定使用 {agent.name} {pinnedVersion?.version}
+            要换 Agent？请使用左侧「＋ 新建任务」——当前任务固定使用 {agent.name}
           </div>
         </div>
       </div>

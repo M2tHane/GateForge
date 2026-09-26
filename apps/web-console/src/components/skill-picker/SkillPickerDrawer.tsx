@@ -3,25 +3,23 @@
 import { useMemo, useState } from "react";
 import { Check, Plus, Search } from "lucide-react";
 import { Drawer } from "@/components/ui/overlay";
-import { Badge } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 import { scopeLabel } from "@/lib/format";
 import type { Scope, Skill } from "@/lib/types";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 
 /**
- * 统一 Skill Picker（DESIGN.md §8）—— Conversation `/skill` 与 Agent Editor
+ * 统一技能选择器（DESIGN.md §8 / §21）—— Conversation「技能」按钮与 Agent Editor
  * 复用同一组件。Scope Tab（平台/团队/我的）+ Category 过滤 + 多选；候选来自
  * Effective Capability（Mock：平台 + 我所属 Team + 我的 Skill）。
- *
- * 绑定语义：选中即绑定 exact SkillVersion（当前 Published Version）。
+ * 日常使用界面不显示版本号；确认时绑定 exact SkillVersion。
  */
 export function SkillPickerDrawer({
   open,
   onClose,
   selectedVersionIds,
   onConfirm,
-  title = "选择 Skills",
+  title = "选择技能",
 }: {
   open: boolean;
   onClose: () => void;
@@ -95,7 +93,7 @@ export function SkillPickerDrawer({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索 Skill"
+              placeholder="搜索技能"
               className="focus-ring h-8 w-full rounded-lg border border-input bg-card pl-8 pr-3 text-xs"
             />
           </div>
@@ -124,12 +122,11 @@ export function SkillPickerDrawer({
           <div className="min-w-0 flex-1 overflow-y-auto p-3">
             {filtered.length === 0 ? (
               <div className="py-10 text-center text-xs text-muted-foreground">
-                该范围内暂无可选 Skill
+                该范围内暂无可选技能
               </div>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {filtered.map((skill) => {
-                  const version = skill.versions.find((v) => v.id === skill.currentVersionId);
                   const checked = selected.includes(skill.currentVersionId);
                   return (
                     <button
@@ -151,7 +148,6 @@ export function SkillPickerDrawer({
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           <span className="truncate text-sm font-medium text-foreground">{skill.name}</span>
-                          <Badge tone="neutral">{version?.version ?? "—"}</Badge>
                         </span>
                         <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                           {skill.description}
@@ -187,7 +183,7 @@ export function SkillPickerDrawer({
             </div>
           ) : null}
           <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">已选 {selected.length} 个 Skill</span>
+            <span className="text-xs text-muted-foreground">已选 {selected.length} 个技能</span>
             <button
               onClick={() => onConfirm(selected)}
               className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-4 text-[13px] font-medium text-primary-foreground hover:bg-primary/90"

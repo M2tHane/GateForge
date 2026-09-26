@@ -6,6 +6,7 @@
  */
 import type { BadgeTone } from "@/components/ui/primitives";
 import type { Agent, ModelCandidate, Skill, Tool, ToolRiskLevel, VersionStatus } from "@/lib/types";
+import { riskLevelLabel } from "@/lib/format";
 
 /** 按 exact SkillVersion id 反查 Skill 与对应版本（跨所有 Skill）。 */
 export function skillByVersionId(
@@ -37,16 +38,9 @@ export function modelLabel(candidates: ModelCandidate[], modelPolicyId: string):
   return found ? found.label : modelPolicyId;
 }
 
-/** Tool 风险等级中文文案（§18：使用明确状态）。 */
+/** Tool 风险等级中文文案（§18：使用明确状态）。统一委托 lib/format。 */
 export function riskLabel(level: ToolRiskLevel): string {
-  switch (level) {
-    case "LOW":
-      return "低";
-    case "MEDIUM":
-      return "中";
-    case "HIGH":
-      return "高";
-  }
+  return riskLevelLabel(level);
 }
 
 export function riskTone(level: ToolRiskLevel): BadgeTone {

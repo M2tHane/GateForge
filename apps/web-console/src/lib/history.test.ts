@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildHistoryGroups, type HistoryFilter } from "./history";
+import { buildHistoryItems, type HistoryFilter } from "./history";
 import type { Agent, Conversation, Task } from "./types";
 
 /** 最小 fixture：History 只读 persisted / title / updatedAt / status / agentId。 */
@@ -73,26 +73,25 @@ const cases: [HistoryFilter, string[]][] = [
   ["conversation", ["conv:c1", "conv:c2"]],
 ];
 
-describe("buildHistoryGroups", () => {
-  it.each(cases)('filter "%s" keeps only matching kinds in recency order', (filter, expected) => {
-    const groups = buildHistoryGroups(conversations, tasks, agents, filter);
-    const flat = [...groups.today, ...groups.yesterday, ...groups.earlier].map((i) => i.key);
-    expect(flat).toEqual(expected);
+describe("buildHistoryItems", () => {
+  it.each(cases)('filter "%s" keeps only matching kinds in updatedAt DESC order', (filter, expected) => {
+    const items = buildHistoryItems(conversations, tasks, agents, filter);
+    expect(items.map((i) => i.key)).toEqual(expected);
   });
 
-  it("groups by 今天 / 昨天 / 更早 under every filter", () => {
-    for (const filter of ["all", "task", "conversation"] as HistoryFilter[]) {
-      const groups = buildHistoryGroups(conversations, tasks, agents, filter);
-      for (const item of groups.today) {
-        expect(item.updatedAt >= iso(1)).toBe(true);
-      }
-    }
+  it("returns one flat list without 今天 / 昨天 / 更早 grouping", () => {
+    const items = buildHistoryItems(conversations, tasks, agents, "all");
+    const sorted = [...items].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    expect(items).toEqual(sorted);
   });
 
-  it("task items carry agent avatar + name", () => {
-    const groups = buildHistoryGroups(conversations, tasks, agents, "task");
-    const item = [...groups.today].find((i) => i.id === "t1")!;
-    expect(item.agentEmoji).toBe("🤖");
-    expect(item.agentName).toBe("Coding Agent");
+  it("task items carry agent avatar + name; conversation items do not", () => {
+    const items = buildHistoryItems(conversations, tasks, agents, "all");
+    const taskItem = items.find((i) => i.id === "t1")!;
+    expect(taskItem.agentEmoji).toBe("🤖");
+    expect(taskItem.agentName).toBe("Coding Agent");
+    const convItem = items.find((i) => i.id === "c1")!;
+    expect(convItem.agentEmoji).toBeUndefined();
+    expect(convItem.agentName).toBeUndefined();
   });
 });

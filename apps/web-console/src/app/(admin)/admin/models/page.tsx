@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Models（DESIGN.md §16）：Model Catalog 骨架列表 + Secret Management 提示卡。
+ * 模型（DESIGN.md §16）：Model Catalog 骨架列表 + Secret Management 提示卡。
  * Stage 01 只读展示，Provider API Key 永不回显。
  */
 import { KeyRound } from "lucide-react";
@@ -15,10 +15,10 @@ export default function AdminModelsPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Models" description="Model Catalog：员工可用的模型候选（Model Policy）" />
+      <PageHeader title="模型" description="模型目录：员工可用的模型候选（Model Policy）" />
       <div className="min-h-0 flex-1 overflow-y-auto bg-background/40 px-6 py-5">
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
-          <AdminTable columns={["展示名", "Provider", "Model", "Model Policy ID"]}>
+          <AdminTable columns={["展示名", "服务商", "模型", "Model Policy ID"]}>
             {s.modelCandidates.map((m) => (
               <AdminRow key={m.id}>
                 <AdminCell className="font-medium text-foreground">{m.label}</AdminCell>

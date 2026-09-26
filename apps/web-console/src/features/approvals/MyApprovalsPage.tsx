@@ -6,11 +6,11 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge, Button, EmptyState } from "@/components/ui/primitives";
 import { Drawer } from "@/components/ui/overlay";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
-import { approvalStatusLabel, formatTime } from "@/lib/format";
+import { approvalStatusLabel, riskLevelLabel, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ApprovalRequest } from "@/lib/types";
 
-/** My Approvals（§15）：聚合与当前用户 Task 相关的待审批。 */
+/** 我的审批（§15 / §21）：聚合与当前用户 Task 相关的待审批。 */
 export function MyApprovalsPage() {
   // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
   const store = useWorkspaceStore();
@@ -26,12 +26,15 @@ export function MyApprovalsPage() {
   }, [approvals, statusFilter]);
 
   const selected: ApprovalRequest | undefined = selectedId ? approvals[selectedId] : undefined;
+  const selectedRunIndex = selected
+    ? store.tasks[selected.taskId]?.runs.find((r) => r.id === selected.runId)?.index
+    : undefined;
 
   return (
     <div className="flex h-full flex-col">
       <PageHeader
-        title="My Approvals"
-        description="与我的 Task 相关的审批请求。批准的永远是本次精确请求，不是给 Agent 永久放行。"
+        title="我的审批"
+        description="与我的任务相关的审批请求。批准的永远是本次精确请求，不是给 Agent 永久放行。"
         actions={
           <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
             {(["PENDING", "ALL"] as const).map((f) => (
@@ -71,7 +74,7 @@ export function MyApprovalsPage() {
                   <div className="flex items-center gap-2">
                     <span className="truncate font-mono text-[13px] font-semibold text-foreground">{a.toolName}</span>
                     <Badge tone={a.riskLevel === "HIGH" ? "danger" : a.riskLevel === "MEDIUM" ? "warning" : "neutral"}>
-                      {a.riskLevel}
+                      {riskLevelLabel(a.riskLevel)}
                     </Badge>
                   </div>
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">
@@ -101,19 +104,19 @@ export function MyApprovalsPage() {
         {selected ? (
           <div className="flex h-full flex-col overflow-y-auto px-5 py-4">
             <div className="space-y-2 rounded-xl border border-border p-3.5 text-xs">
-              <Row label="Requested by">{`${selected.agentName} · Run #${selected.runId.slice(-4)}`}</Row>
-              <Row label="Action">{selected.action}</Row>
-              <Row label="Resource">{selected.resource}</Row>
-              <Row label="Arguments digest">
+              <Row label="请求方">{`${selected.agentName} · 运行 #${selectedRunIndex ?? "—"}`}</Row>
+              <Row label="动作">{selected.action}</Row>
+              <Row label="资源">{selected.resource}</Row>
+              <Row label="参数摘要">
                 <span className="font-mono">{selected.argsDigest}</span>
               </Row>
-              <Row label="Policy">{selected.policyName}</Row>
-              <Row label="Risk">{selected.riskLevel}</Row>
+              <Row label="策略">{selected.policyName}</Row>
+              <Row label="风险等级">{riskLevelLabel(selected.riskLevel)}</Row>
             </div>
 
             <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-warning/10 px-3 py-2 text-[11px] leading-relaxed text-warning">
               <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-              批准的是本次精确请求（action / resource / arguments）；若任一要素变化，需要重新审批。
+              批准的是本次精确请求（动作 / 资源 / 参数）；若任一要素变化，需要重新审批。
             </div>
 
             {selected.status === "PENDING" ? (
@@ -133,7 +136,7 @@ export function MyApprovalsPage() {
                     }}
                   >
                     <Check size={14} />
-                    Approve
+                    批准
                   </Button>
                   <Button
                     variant="danger"
@@ -143,7 +146,7 @@ export function MyApprovalsPage() {
                     }}
                   >
                     <X size={14} />
-                    Reject
+                    拒绝
                   </Button>
                 </div>
               </div>

@@ -36,7 +36,7 @@ export default function HomePage() {
           >
             <MessageSquarePlus size={20} className="text-primary" />
             <span className="text-sm font-medium text-foreground">新建会话</span>
-            <span className="text-xs text-muted-foreground">选模型、导入 Skill，随问随答</span>
+            <span className="text-xs text-muted-foreground">选模型、添加技能，随问随答</span>
           </button>
           <button
             onClick={() => nav.newTask()}

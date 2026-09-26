@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { Check, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ---------- Drawer（Skill Picker / 详情 / 审批等大型侧边面板） ----------
@@ -157,6 +157,69 @@ export function DropdownItem({
     >
       {children}
     </button>
+  );
+}
+
+// ---------- SelectMenu（统一自绘下拉选择；禁用浏览器原生 <select> 外观） ----------
+
+export interface SelectOption {
+  value: string;
+  label: ReactNode;
+}
+
+export function SelectMenu({
+  value,
+  options,
+  onChange,
+  placeholder = "请选择",
+  className,
+}: {
+  value: string;
+  options: SelectOption[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+  /** 挂在面板上的定位 / 尺寸类 */
+  className?: string;
+}) {
+  const current = options.find((o) => o.value === value);
+  return (
+    <Dropdown
+      className={className}
+      trigger={
+        <button
+          type="button"
+          className="focus-ring flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-card px-3 text-sm text-foreground transition-colors hover:bg-accent"
+        >
+          <span className="min-w-0 truncate">
+            {current?.label ?? <span className="text-muted-foreground">{placeholder}</span>}
+          </span>
+          <ChevronDown size={14} className="shrink-0 text-muted-foreground" />
+        </button>
+      }
+    >
+      {(close) => (
+        <>
+          {options.length === 0 ? (
+            <div className="px-2.5 py-2 text-xs text-muted-foreground">暂无可选项</div>
+          ) : (
+            options.map((o) => (
+              <DropdownItem
+                key={o.value}
+                onClick={() => {
+                  onChange(o.value);
+                  close();
+                }}
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span>{o.label}</span>
+                  {o.value === value ? <Check size={12} className="text-primary" /> : null}
+                </span>
+              </DropdownItem>
+            ))
+          )}
+        </>
+      )}
+    </Dropdown>
   );
 }
 

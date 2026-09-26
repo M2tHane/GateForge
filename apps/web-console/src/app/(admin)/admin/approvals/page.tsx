@@ -12,7 +12,7 @@ import { Badge, Button, EmptyState } from "@/components/ui/primitives";
 import { Drawer } from "@/components/ui/overlay";
 import { AdminCell, AdminRow, AdminTable, DetailRow, riskTone } from "@/features/admin/shared";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
-import { approvalStatusLabel, formatDate, formatTime } from "@/lib/format";
+import { approvalStatusLabel, riskLevelLabel, formatDate, formatTime } from "@/lib/format";
 
 export default function AdminApprovalsPage() {
   const s = useWorkspaceStore();
@@ -25,13 +25,13 @@ export default function AdminApprovalsPage() {
 
   function runLabelOf(taskId: string, runId: string): string {
     const run = s.tasks[taskId]?.runs.find((r) => r.id === runId);
-    return run ? `Run #${run.index}` : runId;
+    return run ? `运行 #${run.index}` : runId;
   }
 
   return (
     <div className="flex h-full flex-col">
       <PageHeader
-        title="Approvals"
+        title="审批"
         description="全部审批请求（治理视角）。批准的永远是本次精确请求，不是给 Agent 永久放行。"
       />
       <div className="min-h-0 flex-1 overflow-y-auto bg-background/40 px-6 py-5">
@@ -40,11 +40,11 @@ export default function AdminApprovalsPage() {
             <EmptyState
               icon={<ShieldCheck size={32} />}
               title="暂无审批请求"
-              description="当 Agent 的动作被 Policy 判定为 REQUIRE_APPROVAL 时，会出现在这里。"
+              description="当 Agent 的动作被策略判定为需要审批时，会出现在这里。"
             />
           ) : (
             <AdminTable
-              columns={["Agent", "Task", "Tool", "Risk Level", "Status", "Requested At", ""]}
+              columns={["Agent", "任务", "工具", "风险等级", "状态", "请求时间", ""]}
             >
               {approvals.map((apr) => (
                 <AdminRow
@@ -57,7 +57,7 @@ export default function AdminApprovalsPage() {
                   </AdminCell>
                   <AdminCell mono>{apr.toolName}</AdminCell>
                   <AdminCell>
-                    <Badge tone={riskTone(apr.riskLevel)}>{apr.riskLevel}</Badge>
+                    <Badge tone={riskTone(apr.riskLevel)}>{riskLevelLabel(apr.riskLevel)}</Badge>
                   </AdminCell>
                   <AdminCell>
                     <Badge
@@ -106,24 +106,24 @@ export default function AdminApprovalsPage() {
         {selected ? (
           <div className="flex h-full flex-col overflow-y-auto px-5 py-4">
             <div className="space-y-2.5 rounded-xl border border-border p-3.5">
-              <DetailRow label="Requested by">
+              <DetailRow label="请求方">
                 {`${selected.agentName} · ${selected.taskTitle} · ${runLabelOf(selected.taskId, selected.runId)}`}
               </DetailRow>
-              <DetailRow label="Action">
+              <DetailRow label="动作">
                 <span className="font-mono">{selected.toolName}</span>
                 <span className="ml-2 text-muted-foreground">{selected.action}</span>
               </DetailRow>
-              <DetailRow label="Resource">
+              <DetailRow label="资源">
                 <span className="font-mono">{selected.resource}</span>
               </DetailRow>
-              <DetailRow label="Arguments digest">
+              <DetailRow label="参数摘要">
                 <span className="font-mono">{selected.argsDigest}</span>
               </DetailRow>
-              <DetailRow label="Policy">{selected.policyName}</DetailRow>
-              <DetailRow label="Risk Level">
-                <Badge tone={riskTone(selected.riskLevel)}>{selected.riskLevel}</Badge>
+              <DetailRow label="策略">{selected.policyName}</DetailRow>
+              <DetailRow label="风险等级">
+                <Badge tone={riskTone(selected.riskLevel)}>{riskLevelLabel(selected.riskLevel)}</Badge>
               </DetailRow>
-              <DetailRow label="Expires At">
+              <DetailRow label="过期时间">
                 {`${formatDate(selected.expiresAt)} ${formatTime(selected.expiresAt)}`}
               </DetailRow>
             </div>
@@ -143,7 +143,7 @@ export default function AdminApprovalsPage() {
                   }}
                 >
                   <X size={14} />
-                  Reject
+                  拒绝
                 </Button>
                 <Button
                   variant="primary"
@@ -153,7 +153,7 @@ export default function AdminApprovalsPage() {
                   }}
                 >
                   <Check size={14} />
-                  Approve
+                  批准
                 </Button>
               </div>
             ) : (

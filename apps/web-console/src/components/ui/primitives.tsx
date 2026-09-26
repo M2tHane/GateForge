@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
 
 // ---------- Button ----------
 
@@ -112,13 +112,14 @@ export function Avatar({
 }: {
   emoji: string;
   color: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }) {
   return (
     <span
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full border border-black/5",
+        size === "xs" && "h-[18px] w-[18px] text-[10px]",
         size === "sm" && "h-5 w-5 text-[11px]",
         size === "md" && "h-7 w-7 text-sm",
         size === "lg" && "h-12 w-12 text-2xl",
@@ -127,6 +128,50 @@ export function Avatar({
       style={{ backgroundColor: `${color}22` }}
     >
       {emoji}
+    </span>
+  );
+}
+
+// ---------- Chip（Agent / Skill 统一 chip 语言；可移除 × 仅限尚未固化的选择） ----------
+
+export function Chip({
+  icon,
+  label,
+  onRemove,
+  removeLabel,
+  title,
+  className,
+}: {
+  /** 可选前缀图标（如 Agent Avatar） */
+  icon?: ReactNode;
+  label: string;
+  /** 传入则渲染尾部 ×；Task 已固化的 Agent 不传（不可取消 / 切换） */
+  onRemove?: () => void;
+  removeLabel?: string;
+  title?: string;
+  className?: string;
+}) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        "inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-card py-1 pl-2.5 pr-2 text-xs text-foreground",
+        className,
+      )}
+    >
+      {icon ? <span className="flex shrink-0 items-center">{icon}</span> : null}
+      <span className="truncate">{label}</span>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={removeLabel ?? `移除 ${label}`}
+          title={removeLabel ?? `移除 ${label}`}
+          className="ml-0.5 shrink-0 rounded-full text-muted-foreground/60 transition-colors hover:text-foreground"
+        >
+          ×
+        </button>
+      ) : null}
     </span>
   );
 }
@@ -180,17 +225,8 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   );
 }
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      className={cn(
-        "focus-ring h-9 w-full appearance-none rounded-lg border border-input bg-card px-3 text-sm text-foreground",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+// 注：本项目不提供原生 <select> 包装（DESIGN.md §21）——所有用户可见选择框
+// 一律使用 overlay.tsx 的 SelectMenu / Dropdown 自绘组件。
 
 export function FieldLabel({ children, hint }: { children: ReactNode; hint?: string }) {
   return (

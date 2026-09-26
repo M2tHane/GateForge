@@ -9,16 +9,17 @@ import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge } from "@/components/ui/primitives";
 import { AdminCell, AdminRow, AdminTable, effectTone } from "@/features/admin/shared";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
+import { toolDecisionLabel } from "@/lib/format";
 
 export default function AdminPoliciesPage() {
   const s = useWorkspaceStore();
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Policies" description="Tool Policy 规则列表（只读预览，不含编辑器）" />
+      <PageHeader title="策略" description="工具策略规则列表（只读预览，不含编辑器）" />
       <div className="min-h-0 flex-1 overflow-y-auto bg-background/40 px-6 py-5">
         <div className="mx-auto max-w-5xl">
-          <AdminTable columns={["Name", "Subject", "Action", "Tool", "Effect"]}>
+          <AdminTable columns={["名称", "主体", "动作", "工具", "效果"]}>
             {s.policies.map((rule) => (
               <Fragment key={rule.id}>
                 <AdminRow>
@@ -34,7 +35,7 @@ export default function AdminPoliciesPage() {
                   <AdminCell mono>{rule.action}</AdminCell>
                   <AdminCell mono>{rule.tool}</AdminCell>
                   <AdminCell>
-                    <Badge tone={effectTone(rule.effect)}>{rule.effect}</Badge>
+                    <Badge tone={effectTone(rule.effect)}>{toolDecisionLabel(rule.effect)}</Badge>
                   </AdminCell>
                 </AdminRow>
                 <AdminRow>

@@ -10,7 +10,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { Badge, Button, FieldLabel, Input, Select, Textarea } from "@/components/ui/primitives";
+import { Badge, Button, FieldLabel, Input, Textarea } from "@/components/ui/primitives";
+import { SelectMenu } from "@/components/ui/overlay";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { scopeLabel } from "@/lib/format";
 import { handoffScope } from "@/features/skills/tab-handoff";
@@ -127,14 +128,12 @@ export function CreateSkillPageView() {
                 />
               </div>
               <div>
-                <FieldLabel>Category</FieldLabel>
-                <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </Select>
+                <FieldLabel>分类</FieldLabel>
+                <SelectMenu
+                  value={categoryId}
+                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                  onChange={setCategoryId}
+                />
               </div>
               <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-4">
                 <span className="text-[11px] text-muted-foreground">

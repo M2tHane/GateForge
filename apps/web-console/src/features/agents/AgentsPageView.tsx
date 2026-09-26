@@ -1,21 +1,20 @@
 "use client";
 
 /**
- * Agents 页面（DESIGN.md §9）：Personal Agent Card Grid。
+ * Agents 页面（DESIGN.md §9 / §21）：Personal Agent Card Grid。
  *
- * Card 至少展示 Avatar / Name / Created At / 状态（可用 · 已停用）/ Primary
- * Action；不塞 Model / Tool / Token 详情（进入 Agent Detail 再看）。
- * ENABLED → [启动任务]（预选该 Agent 的 New Task Composer）；
- * DISABLED → [启用]。[···] 为启用/停用、查看详情等次级动作。
+ * Card 至少展示 Avatar / Name / Created At / 状态（可用 · 已停用）/ 主操作。
+ * 左侧固定为 Agent 生命周期动作：DISABLED → [启动]，ENABLED → [停用]；
+ * 右侧 [启动任务] 仅在 ENABLED 时出现（预选该 Agent 的 New Task Composer）。
+ * 不再使用三点菜单承载主要操作。
  *
  * 渲染契约：mock store 的嵌套变更原地发生，这里按 store 约定整店订阅，
  * 不做依赖对象引用的 memo。
  */
-import { MoreHorizontal, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { useWorkspaceNav } from "@/components/shell/nav";
-import { Dropdown, DropdownItem } from "@/components/ui/overlay";
 import { Avatar, Badge, Button, Card, EmptyState, StatusDot } from "@/components/ui/primitives";
 import { agentStatusLabel, formatDate } from "@/lib/format";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
@@ -96,7 +95,32 @@ export function AgentsPageView() {
                     </div>
                   </div>
 
-                  <div className="mt-auto flex items-center justify-between pt-1">
+                  <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+                    {/* 左侧永远是生命周期动作：DISABLED → 启动，ENABLED → 停用 */}
+                    {enabled ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          useWorkspaceStore.getState().setAgentStatus(agent.id, "DISABLED");
+                        }}
+                      >
+                        停用
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          useWorkspaceStore.getState().setAgentStatus(agent.id, "ENABLED");
+                        }}
+                      >
+                        启动
+                      </Button>
+                    )}
+                    {/* 右侧：仅 ENABLED 时出现「启动任务」（进入 New Task Composer 并预选） */}
                     {enabled ? (
                       <Button
                         size="sm"
@@ -108,53 +132,7 @@ export function AgentsPageView() {
                       >
                         启动任务
                       </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          useWorkspaceStore.getState().setAgentStatus(agent.id, "ENABLED");
-                        }}
-                      >
-                        启用
-                      </Button>
-                    )}
-                    <span onClick={(e) => e.stopPropagation()}>
-                      <Dropdown
-                        align="end"
-                        trigger={
-                          <button
-                            className="focus-ring rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-                            aria-label={`${agent.name} 更多操作`}
-                          >
-                            <MoreHorizontal size={16} />
-                          </button>
-                        }
-                      >
-                        {(close) => (
-                          <>
-                            <DropdownItem
-                              onClick={() => {
-                                useWorkspaceStore
-                                  .getState()
-                                  .setAgentStatus(agent.id, enabled ? "DISABLED" : "ENABLED");
-                                close();
-                              }}
-                            >
-                              {enabled ? "停用" : "启用"}
-                            </DropdownItem>
-                            <DropdownItem
-                              onClick={() => {
-                                close();
-                                router.push(`/agents/${agent.id}`);
-                              }}
-                            >
-                              查看详情
-                            </DropdownItem>
-                          </>
-                        )}
-                      </Dropdown>
-                    </span>
+                    ) : null}
                   </div>
                 </Card>
               );

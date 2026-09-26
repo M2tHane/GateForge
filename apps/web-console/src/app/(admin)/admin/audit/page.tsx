@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Audit（DESIGN.md §16）：审计日志骨架表格，点击行打开 metadata Drawer。
+ * 审计（DESIGN.md §16）：审计日志骨架表格，点击行打开 metadata Drawer。
  */
 import { useState } from "react";
 import { ScrollText } from "lucide-react";
@@ -21,14 +21,14 @@ export default function AdminAuditPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Audit" description="平台审计日志（只读）" />
+      <PageHeader title="审计" description="平台审计日志（只读）" />
       <div className="min-h-0 flex-1 overflow-y-auto bg-background/40 px-6 py-5">
         <div className="mx-auto max-w-5xl">
           {entries.length === 0 ? (
             <EmptyState icon={<ScrollText size={32} />} title="暂无审计记录" />
           ) : (
             <AdminTable
-              columns={["Time", "Actor", "Operation", "Resource", "Result", "Correlation ID"]}
+              columns={["时间", "操作者", "操作", "资源", "结果", "关联 ID"]}
             >
               {entries.map((entry) => (
                 <AdminRow key={entry.id} onClick={() => setSelectedId(entry.id)}>
@@ -40,9 +40,9 @@ export default function AdminAuditPage() {
                   <AdminCell className="max-w-56 truncate">{entry.resource}</AdminCell>
                   <AdminCell>
                     {entry.result === "OK" ? (
-                      <Badge tone="success">OK</Badge>
+                      <Badge tone="success">成功</Badge>
                     ) : (
-                      <Badge tone="danger">DENIED</Badge>
+                      <Badge tone="danger">已拒绝</Badge>
                     )}
                   </AdminCell>
                   <AdminCell mono className="text-muted-foreground">
@@ -64,27 +64,27 @@ export default function AdminAuditPage() {
         {selected ? (
           <div className="h-full overflow-y-auto px-5 py-4">
             <div className="space-y-2.5 rounded-xl border border-border p-3.5">
-              <DetailRow label="Time">
+              <DetailRow label="时间">
                 {`${formatDate(selected.at)} ${formatTime(selected.at)}`}
               </DetailRow>
-              <DetailRow label="Actor">{selected.actor}</DetailRow>
-              <DetailRow label="Operation">
+              <DetailRow label="操作者">{selected.actor}</DetailRow>
+              <DetailRow label="操作">
                 <span className="font-mono">{selected.operation}</span>
               </DetailRow>
-              <DetailRow label="Resource">
+              <DetailRow label="资源">
                 <span className="font-mono">{selected.resource}</span>
               </DetailRow>
-              <DetailRow label="Result">
+              <DetailRow label="结果">
                 {selected.result === "OK" ? (
-                  <Badge tone="success">OK</Badge>
+                  <Badge tone="success">成功</Badge>
                 ) : (
-                  <Badge tone="danger">DENIED</Badge>
+                  <Badge tone="danger">已拒绝</Badge>
                 )}
               </DetailRow>
-              <DetailRow label="Correlation ID">
+              <DetailRow label="关联 ID">
                 <span className="font-mono">{selected.correlationId}</span>
               </DetailRow>
-              <DetailRow label="Entry ID">
+              <DetailRow label="记录 ID">
                 <span className="font-mono">{selected.id}</span>
               </DetailRow>
             </div>

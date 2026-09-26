@@ -25,13 +25,13 @@ import { EmptyState } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 
 const ADMIN_NAV = [
-  { label: "Models", path: "/admin/models", icon: <Cpu size={15} /> },
-  { label: "Tools / MCP Servers", path: "/admin/tools", icon: <Wrench size={15} /> },
-  { label: "Skill Categories", path: "/admin/skill-categories", icon: <FolderTree size={15} /> },
-  { label: "Policies", path: "/admin/policies", icon: <ScrollText size={15} /> },
-  { label: "Approvals", path: "/admin/approvals", icon: <ShieldCheck size={15} /> },
-  { label: "Teams", path: "/admin/teams", icon: <Users size={15} /> },
-  { label: "Audit", path: "/admin/audit", icon: <FileClock size={15} /> },
+  { label: "模型", path: "/admin/models", icon: <Cpu size={15} /> },
+  { label: "工具 / MCP 服务", path: "/admin/tools", icon: <Wrench size={15} /> },
+  { label: "技能分类", path: "/admin/skill-categories", icon: <FolderTree size={15} /> },
+  { label: "策略", path: "/admin/policies", icon: <ScrollText size={15} /> },
+  { label: "审批", path: "/admin/approvals", icon: <ShieldCheck size={15} /> },
+  { label: "团队", path: "/admin/teams", icon: <Users size={15} /> },
+  { label: "审计", path: "/admin/audit", icon: <FileClock size={15} /> },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

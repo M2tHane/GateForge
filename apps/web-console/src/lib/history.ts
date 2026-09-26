@@ -1,9 +1,9 @@
 /**
- * Sidebar History（DESIGN.md §5.1）：Conversation + Task 混排、
- * 今天 / 昨天 / 更早 分组、顶部「全部 / 任务 / 会话」视图过滤。
+ * Sidebar History（DESIGN.md §5.1 / §21）：Conversation + Task 混排的紧凑单行
+ * 列表，统一按 updatedAt DESC 排序（不按 今天 / 昨天 / 更早 分组）；
+ * 顶部「全部 / 任务 / 会话」视图过滤。
  * 纯函数：过滤只是 UI View State，不改 Conversation / Task 业务数据模型。
  */
-import { dayGroupOf, type DayGroup } from "@/lib/format";
 import type { Agent, Conversation, Task } from "@/lib/types";
 
 export type HistoryFilter = "all" | "task" | "conversation";
@@ -20,19 +20,17 @@ export interface HistoryItem {
   id: string;
   title: string;
   updatedAt: string;
+  /** Task 专属：所属 Agent（标题尾部的 Avatar 与 Tooltip 用） */
   agentEmoji?: string;
   agentName?: string;
-  sub: string;
 }
 
-export type HistoryGroups = Record<DayGroup, HistoryItem[]>;
-
-export function buildHistoryGroups(
+export function buildHistoryItems(
   conversations: Record<string, Conversation>,
   tasks: Record<string, Task>,
   agents: Record<string, Agent>,
   filter: HistoryFilter,
-): HistoryGroups {
+): HistoryItem[] {
   const items: HistoryItem[] = [];
 
   if (filter !== "task") {
@@ -44,7 +42,6 @@ export function buildHistoryGroups(
         id: conv.id,
         title: conv.title,
         updatedAt: conv.updatedAt,
-        sub: "会话",
       });
     }
   }
@@ -61,13 +58,10 @@ export function buildHistoryGroups(
         updatedAt: task.updatedAt,
         agentEmoji: agent?.avatarEmoji,
         agentName: agent?.name,
-        sub: agent ? `${agent.avatarEmoji} ${agent.name}` : "任务",
       });
     }
   }
 
   items.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-  const groups: HistoryGroups = { today: [], yesterday: [], earlier: [] };
-  for (const item of items) groups[dayGroupOf(item.updatedAt)].push(item);
-  return groups;
+  return items;
 }

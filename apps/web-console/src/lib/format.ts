@@ -1,4 +1,14 @@
-import type { Scope, AgentStatus, RunStatus, ApprovalStatus, VersionStatus } from "./types";
+import type {
+  Scope,
+  AgentStatus,
+  RunStatus,
+  ApprovalStatus,
+  VersionStatus,
+  PolicyDecision,
+  ToolCallStatus,
+  ToolProvider,
+  ToolRiskLevel,
+} from "./types";
 
 /** Generate a readable mock id, e.g. `ag_9f3ab2c1`. */
 export function nid(prefix: string): string {
@@ -69,6 +79,50 @@ export function versionStatusLabel(status: VersionStatus): string {
   }
 }
 
+/** Tool 风险等级（§18：中文文案，raw enum 只出现在技术详情 / 审计场景） */
+export function riskLevelLabel(level: ToolRiskLevel): string {
+  switch (level) {
+    case "LOW":
+      return "低";
+    case "MEDIUM":
+      return "中";
+    case "HIGH":
+      return "高";
+  }
+}
+
+/** Policy / Tool 决策：ALLOW → 允许，DENY → 拒绝，REQUIRE_APPROVAL → 需要审批 */
+export function toolDecisionLabel(decision: PolicyDecision): string {
+  switch (decision) {
+    case "ALLOW":
+      return "允许";
+    case "DENY":
+      return "拒绝";
+    case "REQUIRE_APPROVAL":
+      return "需要审批";
+  }
+}
+
+export function toolCallStatusLabel(status: ToolCallStatus): string {
+  switch (status) {
+    case "PENDING":
+      return "处理中";
+    case "AWAITING_APPROVAL":
+      return "等待审批";
+    case "SUCCEEDED":
+      return "成功";
+    case "FAILED":
+      return "失败";
+    case "REJECTED":
+      return "已拒绝";
+  }
+}
+
+/** Provider：BUILTIN → 内置工具（MCP / HTTP 为技术专有名词，保留原文） */
+export function providerNameLabel(provider: ToolProvider): string {
+  return provider === "BUILTIN" ? "内置工具" : provider;
+}
+
 export function formatTime(iso: string): string {
   const d = new Date(iso);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -79,19 +133,6 @@ export function formatDate(iso: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate(),
   ).padStart(2, "0")}`;
-}
-
-export type DayGroup = "today" | "yesterday" | "earlier";
-
-export function dayGroupOf(iso: string): DayGroup {
-  const d = new Date(iso);
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const startOfYesterday = startOfToday - 24 * 3600 * 1000;
-  const t = d.getTime();
-  if (t >= startOfToday) return "today";
-  if (t >= startOfYesterday) return "yesterday";
-  return "earlier";
 }
 
 export function truncateTitle(text: string, max = 18): string {

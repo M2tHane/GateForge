@@ -49,8 +49,8 @@ Employee Workspace Shell（所有用户默认）
 ├── Skills
 ├── 我的审批
 ├── 管理员（仅管理能力可见 → 进入 Administration Shell）
-├── More / Settings
-├── History（全部 / 任务 / 会话 过滤；今天 / 昨天 / 更早 分组）
+├── 更多 / 设置
+├── History（全部 / 任务 / 会话 过滤；紧凑单行列表，updatedAt 倒序，不分组）
 └── 多标签页主区域（Conversation / Task Tab）
 
 Administration Shell（独立侧边栏，经「管理员」进入）
@@ -86,20 +86,14 @@ Skills
 
 我的审批（待审批数角标）
 管理员（仅管理能力可见）
-More / Settings
+更多 / 设置
 
 ──────────────
 
 [全部] [任务] [会话]
 
-今天
-  Conversation A
-  Task B
-  Task C
-
-昨天
-  Conversation D
-  Task E
+修复登录超时        [🤖]
+Spring Security 原理 [💬]
 
 ──────────────
 
@@ -108,29 +102,17 @@ More / Settings
 
 - `＋ 新建会话`：点击立即进入新的聊天工作区。
 - `＋ 新建任务`：左侧第二个固定入口，点击进入 New Task Composer（尚未持久化的新建任务界面，见 §7.1）。
-- 历史记录统一展示 Conversation + Task，按时间分组（今天 / 昨天 / 更早）。
+- 历史记录统一展示 Conversation + Task：**紧凑单行列表**，按 `updatedAt` 倒序混排，**不按 今天 / 昨天 / 更早 分组**（§21）。
 - 历史顶部的 `[全部] [任务] [会话]` 是 UI View State 过滤（默认全部）：全部 = Conversation + Task 混排，任务 = 只显示 Task，会话 = 只显示 Conversation；只过滤视图，不改业务数据模型。
 - **不默认显示** Overview / Runs / Tools / Models / Policies / Audit——这些治理入口在 Administration Shell，不挤占员工日常导航。
 - `管理员` 是 Administration 的唯一入口：点击进入独立 Administration Shell（§5.4），不在本 Sidebar 内展开治理子模块。
 - 不展示搜索框和用户资料大卡片。
 
-历史 item 样式：
+历史 item 样式（§21）：**单行**，标题过长 ellipsis 截断，类型图标固定在行尾（不占第二行，不会被标题挤掉）：
 
-Conversation item：
+Conversation item：`Spring Security 原理 [💬]`——行尾为统一的「会话」图标（hover Tooltip：会话）。
 
-```text
-Spring Security 原理
-帮我解释认证链...
-GPT-xxx
-```
-
-Task item（必须显示 Agent Avatar + Agent Name，让员工快速知道是哪个 Agent 在做这个任务）：
-
-```text
-修复登录超时
-登录接口一直出现 504...
-[🤖] Coding Agent
-```
+Task item：`修复登录超时 [🤖]`——行尾为该 Task 所属 Agent 的 Avatar（hover Tooltip：Agent 名，如 Coding Agent）。Task 必须带 Agent Avatar，让员工快速知道是哪个 Agent 在做这个任务。
 
 ### 5.2 顶部：多标签页 Tab Bar
 
@@ -155,13 +137,13 @@ Administration 不在 Employee Sidebar 内展开。具备管理能力的用户�
 ```text
 GateForge Admin
 ──────────────
-Models
-Tools / MCP Servers
-Skill Categories
-Policies
-Approvals
-Teams
-Audit
+模型
+工具 / MCP 服务
+技能分类
+策略
+审批
+团队
+审计
 ──────────────
 用户信息 · 返回工作区
 ```
@@ -179,14 +161,15 @@ Audit
 
 ```text
 ┌─────────────────────────────────────────────┐
+│ [GPT-5.2 ×] [Code Review ×]                 │
 │ 输入消息...                                 │
 │                                             │
-│ [GPT-xxx ▼]    /skill               [发送]  │
+│ [GPT-xxx ▼]    技能                 [发送]  │
 └─────────────────────────────────────────────┘
 ```
 
 - **Model Selector**：候选来自“我当前允许使用哪些模型”（Effective Capability 内的 Model Policy / logical model），不是 Provider 配置。
-- **/skill**：唤起统一 Skill Picker（见 §8），选中的 Skill 注入当前 Conversation 上下文；输入框上方以 chip 展示已导入 Skill，可单个移除。
+- **技能**：唤起统一 Skill Picker（见 §8），选中的 Skill 注入当前 Conversation 上下文；输入框上方以 Skill Chip 展示已导入技能（`名称 ×`，可单个移除，**不显示版本号**，§21）。内部实现保留 `/skill` 命令兼容，但 UI 不再展示 `/skill`。
 - 多轮对话；中途切换默认 Model：历史消息不改变，只影响后续调用。
 - Conversation 保存 defaultModelPolicyId；每条 Assistant 消息记录实际使用的 modelPolicy / provider / model / usage。
 - 已导入 Skill 绑定 exact SkillVersion：平台 Skill 后续更新不会静默改变进行中的 Conversation。
@@ -200,22 +183,25 @@ Task 有两个必须区分的状态：**New Task Composer**（尚未持久化，
 
 ### 7.1 New Task Composer（Task 创建前）
 
-点击 `＋ 新建任务` 进入一个**尚未持久化**的 New Task Composer。此时底部输入框：
+点击 `＋ 新建任务` 进入一个**尚未持久化**的 New Task Composer。Agent 选择以 **Agent Chip** 呈现在输入框上方（与 Skill Chip 同一组件语言，§21）：
 
 ```text
 ┌──────────────────────────────────────────────┐
+│ [选择 Agent]        ← 未选择时为虚线 chip 入口 │
+│ [🤖 Coding Agent ×] ← 选择后显示，× 可取消     │
 │ 输入任务指令...                              │
 │                                              │
-│ [🤖 选择 Agent ▼]                    [发送]  │
+│                                      [发送]  │
 └──────────────────────────────────────────────┘
 ```
 
-- **Agent Selector 只存在于 New Task Composer**。候选只显示：
+- **Agent 选择只存在于 New Task Composer**。候选只显示：
   - 当前用户的 Personal Agent（owner = 当前用户）
   - `status = ENABLED`（可用）
   - 存在 Published Version
   - 当前 Published Version 的 Effective Capability 仍然有效
-- 选择 Agent 后显示 `Coding Agent v1.2.0`（Agent Name + Version）。
+- 选择后 Agent Chip 只显示 `Agent Avatar + Agent Name`，**不显示版本号**（§21）；exact agentVersionId 在发送创建时绑定。
+- Chip 上的 `×` 仅在 **Task 创建前** 可取消当前选择；这是全站唯一允许移除 Agent 的位置。
 - MVP 只允许选择一个 Agent；不出现 Add Agent / Agent Team / Supervisor / Multi-Agent。
 - **第一次发送消息时才持久化**：
 
@@ -233,18 +219,19 @@ POST /api/tasks
 
 ### 7.2 Existing Task Workspace（Task 创建后）
 
-Task 一旦创建，即固定 `agentId` + exact Published `agentVersionId`；底部 Agent Selector 必须变成**只读身份展示**：
+Task 一旦创建，即固定 `agentId` + exact Published `agentVersionId`；输入框上方的 Agent Chip 变为**只读身份展示**：
 
 ```text
 ┌──────────────────────────────────────────────┐
+│ [🤖 Coding Agent]   ← 只读 Chip：无 ×、不可切换 │
 │ 继续告诉 Agent...                            │
 │                                              │
-│ 🤖 Coding Agent · v1.2.0              [发送] │
+│                                      [发送]  │
 └──────────────────────────────────────────────┘
 ```
 
-- **不显示 ▼**；不提供 Switch Agent，不提供 Switch Agent Version。
-- 明确显示 Agent Avatar + Agent Name + **Pinned Agent Version**，让用户理解：即使之后 Coding Agent 发布了 v1.3.0，当前 Task 仍然继续使用 v1.2.0。
+- **不显示 ▼、不显示 ×**；不提供 Switch Agent，不提供 Switch Agent Version，不显示版本号（§21）。
+- Chip 仅展示 Agent Avatar + Agent Name。语义上该 Task 永远使用创建时固定的 exact AgentVersion——即使之后 Coding Agent 发布了新版本；精确版本号可在执行详情 / 管理与审计场景查看。
 - Task = 一个固定 Agent 工作上下文。如果用户想换 Agent，应该 `＋ 新建任务`，而不是改变已有 Task。
 - MVP 不做 Upgrade Task Agent Version；未来如果增加升级能力，必须是明确的显式操作，并单独做 ADR / 产品设计。
 
@@ -259,24 +246,24 @@ Task 一旦创建，即固定 `agentId` + exact Published `agentVersionId`；底
 Task 的右侧 Inspector 可展开，Tabs：
 
 ```text
-[Run] [Files] [Tool] [Trace] [Approval]
+[运行] [文件] [工具] [链路] [审批]
 ```
 
-- **Run**：当前与历史 Run 列表、状态、耗时、Token / Cost。
-- **Tool**：完整 Tool Request / Result、Policy Decision。
-- **Trace**：执行时间线与 Raw Event（完整 Run Trace 不塞进聊天流）。
-- **Approval**：待审批动作可直接处理（Reject / Approve），展示“批准的是本次精确请求”。
+- **运行**：当前与历史 Run 列表、状态、耗时、Token / Cost。
+- **工具**：完整 Tool Request / Result、Policy Decision。默认视图为**人类可读摘要**（如「工具 / 内容搜索 / 允许 / 成功 / 在 src/ 中搜索 findUserOrders / 在 4 个文件中找到 5 处匹配」）；原始 Tool ID、toolVersionId、provider enum、raw args / result 放入默认收起的「技术详情」折叠区（§21）。
+- **链路**：执行时间线与 Raw Event（完整 Run Trace 不塞进聊天流）。
+- **审批**：待审批动作可直接处理（拒绝 / 批准），展示“批准的是本次精确请求”。
 - 聊天流中只显示简洁、人类可读的 Tool / Progress 信息（如“正在读取 src/auth/…”、“git.push 等待审批”）。
 
 Conversation 的 Inspector 默认隐藏；Task 的 Inspector 默认展开（可收起）。
 
 ## 8. Skill Picker（统一组件）
 
-Agent Editor 和 Conversation `/skill` 必须复用同一个 Skill Picker。使用大型 Drawer：
+Agent Editor 和 Conversation「技能」按钮必须复用同一个 Skill Picker。使用大型 Drawer：
 
 ```text
 ┌──────────────────────────────────────────────────┐
-│ 选择 Skills                           [完成 3]   │
+│ 选择技能                              [完成 3]   │
 ├──────────────────────────────────────────────────┤
 │ [平台] [团队] [我的]                            │
 ├──────────────┬───────────────────────────────────┤
@@ -305,13 +292,15 @@ Personal Agent **Card Grid**（不是 Table）。Desktop 每行 4 个 Card。
 │ 创建：2026-09-26   │
 │ ● 可用             │
 │                    │
-│ [启动任务]   [···] │
+│ [停用]  [启动任务] │
 └────────────────────┘
 ```
 
 - Card 至少展示：Avatar、Agent Name、Created At、可用 / 已停用（ENABLED / DISABLED）、Primary Action。
-- ENABLED：Primary Action 为 `[启动任务]`（进入 New Task Composer 并预选该 Agent）；DISABLED：为 `[启用]`。
-- `[···]`：启用 / 停用、查看详情等次级动作。
+- **左侧固定为生命周期动作，右侧为任务入口，不再使用三点菜单（§21）**：
+  - DISABLED：左侧 `[启动]`，无右侧动作；
+  - ENABLED：左侧 `[停用]`，右侧 `[启动任务]`（进入 New Task Composer 并预选该 Agent）。
+  - 点击 启动 → status = ENABLED，按钮立即变为 停用 并出现 启动任务；点击 停用 → status = DISABLED，按钮立即变为 启动 且隐藏 启动任务。
 - 不要把所有 Model / Tool / Token 信息塞进 Card；进入 Agent Detail 再看。
 - 右上角：`[+ 创建 Agent]`。
 - Workspace Admin 额外可见“平台模板”视图（管理 Workspace Agent Templates，复用 Card Grid + 创建流程，创建时 scope = WORKSPACE）。
@@ -542,11 +531,19 @@ Budget Policy 列表与用量视图（沿用现有预算页面设计）。
 
 - Scope：`平台`（WORKSPACE）/ `团队`（TEAM）/ `我的`（PERSONAL）
 - Agent 状态：`可用` / `已停用`（不使用 Running / Stopped）
-- `Waiting for approval` 而不是 `Pending action`
-- `Publish version` 而不是 `Deploy config`
-- `Policy blocked this action` 而不是 `Something went wrong`
+- Agent 生命周期动作：`启动` / `停用`（卡片与详情页一致）
+- `等待审批` 而不是 `Pending action`
+- `发布版本` 而不是 `Deploy config`
+- `策略拦截了该动作` 而不是 `Something went wrong`
 
 错误提示必须能回答：发生了什么、为什么、下一步能做什么。
+
+**中文化约定（§21）**：
+
+- 用户可见的界面文案默认中文。导航 / Tab / 区块标题一律中文：执行详情、运行、文件、工具、链路、审批、模型、策略、团队、审计、技能分类、工具 / MCP 服务、更多 / 设置。
+- 以下专有名词保留英文原文，不做机械翻译：MCP、API、HTTP、JSON、ID、Token、Git、Java、TypeScript、模型名称（GPT-5.2 等）、Tool 的真实技术参数值、文件路径 / command / raw data；Agent、Skill 作为资源名词内嵌在中文句子中保留（如「选择 Agent」「克隆 Skill」）。
+- 版本号只在管理 / 审计场景展示（Agent Detail 版本页、执行详情技术详情、审计）；日常使用界面（会话 Skill Chip、任务 Agent Chip、技能选择器、New Task Composer）**不显示版本号**——后台仍保持 exact version 绑定，只是 UI 不展示。
+- 用户可见的选择框一律使用自绘 SelectMenu / Dropdown，**禁止浏览器原生 `<select>` 外观**。
 
 ## 19. 响应式
 
@@ -590,3 +587,18 @@ Employee Workspace 必须可点击演示：
 Administration 基础骨架（优先级低于 Employee Workspace）：Models、Tools / MCP、Skill Categories、Policies、Approvals、Teams、Audit。
 
 确认信息架构和交互后再进入 Control Plane 后端实现，避免 API 和页面同时反复变化。
+
+## 21. Post-Gate UX Polish（2026-09-26，第二轮收口）
+
+Gate 通过后的 UI / UX 收口（只做 UI Compression / Localization / Interaction Polish / Component Consistency，不改任何业务语义：Task Agent Immutable、New instruction → New Run、Approval Resume → Same Run、exact version 绑定全部保持）：
+
+1. **History 紧凑列表**：不再按 今天 / 昨天 / 更早 分组；单一连续列表按 `updatedAt` 倒序；保留 全部 / 任务 / 会话 过滤。
+2. **History Item 单行**：标题 ellipsis 截断，类型图标固定在行尾——Conversation 为统一「会话」图标，Task 为所属 Agent 的 Avatar；hover Tooltip 显示类型 / Agent 名。
+3. **Agent Card 动作**：左侧永远是生命周期动作（DISABLED → 启动；ENABLED → 停用），右侧仅在 ENABLED 时显示 启动任务；删除三点菜单。
+4. **`/skill` → 技能**：所有用户可见的 `/skill` 按钮改为「技能」；空状态引导改为「点击“技能”添加技能」；内部命令兼容保留，UI 不再展示。
+5. **日常使用隐藏版本号**：会话 Skill Chip、任务 Agent Chip、技能选择器、New Task Composer 候选均不显示版本；版本仅在 Agent Detail / 版本页 / 执行详情 / 审计可见。数据层 exact SkillVersion / AgentVersion / ToolVersion 绑定不变。
+6. **Agent Chip / Skill Chip 统一组件语言**：共用 Chip 组件（圆角胶囊 + 尾部 ×）。× 仅允许出现在 New Task Composer（Task 尚未创建）——Existing Task 的 Agent Chip 只读、无 ×、不可切换。
+7. **Administration / Inspector 中文化**：Admin Shell 七个模块入口与各管理页标题、表头、抽屉标签全部中文；Inspector 更名「执行详情」，Tabs 为 运行 / 文件 / 工具 / 链路 / 审批。
+8. **工具调用人类可读展示**：Built-in Tool 显示中文名（builtin.read→读取文件、builtin.glob→文件查找、builtin.grep→内容搜索、builtin.edit→编辑文件、builtin.write→写入文件、builtin.bash→执行命令）；BUILTIN→内置工具、ALLOW→允许、DENY→拒绝、REQUIRE_APPROVAL→需要审批、SUCCESS→成功、FAILED→失败。默认视图为中文摘要（如「在 src/ 中搜索 findUserOrders」）；原始 Tool ID / toolVersionId / raw args 放默认收起的「技术详情」折叠区。底层 Tool ID 不变。
+9. **禁止原生 Select**：全部用户可见选择框使用自绘组件（共享 SelectMenu / Dropdown / Popover），统一圆角、边框、hover、focus、选中态；不使用浏览器默认 `<select>` 外观。
+10. **文案规范**：见 §18 中文化约定（普通 UI 中文 + 专有名词保留 + 版本号展示边界）。

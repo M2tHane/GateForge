@@ -7,14 +7,14 @@ import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatScrollArea, MessageList } from "@/components/chat/MessageList";
 import { SkillPickerDrawer } from "@/components/skill-picker/SkillPickerDrawer";
 import { Dropdown, DropdownItem } from "@/components/ui/overlay";
-import { EmptyState } from "@/components/ui/primitives";
+import { Chip, EmptyState } from "@/components/ui/primitives";
 import { convTabKey, useWorkspaceStore } from "@/lib/store/workspace-store";
 
 /**
- * Conversation Workspace（DESIGN.md §6）：不绑 Agent、不产生 Run 的多轮聊天，
+ * Conversation Workspace（DESIGN.md §6 / §21）：不绑 Agent、不产生 Run 的多轮聊天，
  * 必经 Model Gateway。Footer 左侧为 Model Selector（中途切换只影响后续调用）
- * 与 /skill 入口（统一 Skill Picker，§8）；已导入 Skill 以 chips 展示
- * （exact SkillVersion 绑定，可单个移除）。
+ * 与「技能」入口（统一 Skill Picker，§8）；已导入 Skill 以 chips 展示
+ * （exact SkillVersion 绑定，可单个移除；日常使用不显示版本号）。
  */
 export function ConversationWorkspace() {
   const params = useParams<{ id: string }>();
@@ -59,6 +59,7 @@ export function ConversationWorkspace() {
     if (!text) return;
     useWorkspaceStore.getState().setTabDraft(tabKey, "");
     if (text === "/skill") {
+      // 内部命令兼容（仅实现层）；UI 入口是「技能」按钮，不再展示 /skill
       setPickerOpen(true);
       return;
     }
@@ -80,7 +81,7 @@ export function ConversationWorkspace() {
             <div className="py-20 text-center">
               <div className="text-sm font-medium text-foreground">开始你的新会话</div>
               <div className="mt-1.5 text-xs text-muted-foreground">
-                在下方选择默认模型，输入 /skill 导入 Skill，或直接发送第一条消息。
+                在下方选择默认模型，点击「技能」添加技能，或直接发送第一条消息。
               </div>
             </div>
           }
@@ -88,25 +89,16 @@ export function ConversationWorkspace() {
       </ChatScrollArea>
 
       <div className="shrink-0 px-6 pb-5">
-        {/* 已导入 Skill chips：exact SkillVersion 绑定，可单个移除 */}
+        {/* 已导入 Skill chips：exact SkillVersion 绑定，可单个移除；日常使用不显示版本号 */}
         {boundSkills.length > 0 ? (
           <div className="mb-2 flex flex-wrap items-center gap-1.5">
             {boundSkills.map(({ skill, version }) => (
-              <span
+              <Chip
                 key={version.id}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground"
-              >
-                {skill.name}
-                <span className="text-[10px] text-muted-foreground">{version.version}</span>
-                <button
-                  type="button"
-                  onClick={() => useWorkspaceStore.getState().removeConversationSkill(convId, version.id)}
-                  className="text-muted-foreground/70 transition-colors hover:text-foreground"
-                  aria-label={`移除 ${skill.name}`}
-                >
-                  ×
-                </button>
-              </span>
+                label={skill.name}
+                removeLabel={`移除 ${skill.name}`}
+                onRemove={() => useWorkspaceStore.getState().removeConversationSkill(convId, version.id)}
+              />
             ))}
           </div>
         ) : null}
@@ -155,13 +147,13 @@ export function ConversationWorkspace() {
                 )}
               </Dropdown>
 
-              {/* /skill：唤起统一 Skill Picker（§8），也可在输入框输入 /skill 回车触发 */}
+              {/* 技能：唤起统一 Skill Picker（§8） */}
               <button
                 type="button"
                 onClick={() => setPickerOpen(true)}
                 className="focus-ring inline-flex h-7 items-center rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
               >
-                /skill
+                技能
               </button>
             </div>
           }

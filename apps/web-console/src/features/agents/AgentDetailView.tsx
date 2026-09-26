@@ -35,8 +35,8 @@ type DetailTab = "overview" | "versions" | "skills" | "tools" | "tasks" | "setti
 const DETAIL_TABS: { id: DetailTab; label: string }[] = [
   { id: "overview", label: "概览" },
   { id: "versions", label: "版本" },
-  { id: "skills", label: "Skills" },
-  { id: "tools", label: "Tools" },
+  { id: "skills", label: "技能" },
+  { id: "tools", label: "工具" },
   { id: "tasks", label: "历史任务" },
   { id: "settings", label: "设置" },
 ];
@@ -156,7 +156,7 @@ export function AgentDetailView() {
                   <span className="text-muted-foreground">尚未发布版本</span>
                 )}
               </Row>
-              <Row label="Published Version">
+              <Row label="已发布版本">
                 {published ? <Badge tone="info">{published.version}</Badge> : "—"}
                 {hasDraft ? <Badge tone="warning" className="ml-2">有草稿待发布</Badge> : null}
               </Row>
@@ -373,7 +373,7 @@ export function AgentDetailView() {
                       variant="primary"
                       onClick={() => useWorkspaceStore.getState().setAgentStatus(agent.id, "ENABLED")}
                     >
-                      启用
+                      启动
                     </Button>
                   )}
                 </Row>

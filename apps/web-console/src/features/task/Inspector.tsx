@@ -17,14 +17,20 @@ import {
   approvalStatusLabel,
   formatDuration,
   formatTime,
+  riskLevelLabel,
   runStatusLabel,
+  toolCallStatusLabel,
+  toolDecisionLabel,
 } from "@/lib/format";
+import { toolCallResultSummary, toolCallSummary, toolDisplayName } from "@/lib/tool-display";
 import { cn } from "@/lib/utils";
 import type { Run, ToolCall } from "@/lib/types";
 
 /**
- * Task Inspector（§7.4）：Run / Files / Tool / Trace / Approval。
+ * Task 执行详情 Inspector（§7.4 / §21）：运行 / 文件 / 工具 / 链路 / 审批。
  * 聊天流只显示简洁工具进度；完整 Request / Result / Trace / Raw Event 在这里。
+ * 工具调用默认显示人类可读摘要（中文显示名 + 参数 / 结果意译）；
+ * 原始 Tool ID / toolVersionId / argsDigest 放「技术详情」折叠区，默认收起。
  */
 export function Inspector({
   taskId,
@@ -63,12 +69,12 @@ export function Inspector({
     >
       <div className="flex h-10 items-center justify-between border-b border-border px-2">
         {!collapsed ? (
-          <span className="px-1 text-xs font-semibold text-foreground">Inspector</span>
+          <span className="px-1 text-xs font-semibold text-foreground">执行详情</span>
         ) : null}
         <button
           onClick={onToggle}
           className="focus-ring rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          title={collapsed ? "展开 Inspector" : "收起 Inspector"}
+          title={collapsed ? "展开执行详情" : "收起执行详情"}
         >
           {collapsed ? <PanelRightOpen size={15} /> : <PanelRightClose size={15} />}
         </button>
@@ -79,11 +85,11 @@ export function Inspector({
           <div className="px-3 pt-2">
             <Tabs
               tabs={[
-                { id: "run", label: "Run" },
-                { id: "files", label: "Files" },
-                { id: "tool", label: "Tool" },
-                { id: "trace", label: "Trace" },
-                { id: "approval", label: pendingCount > 0 ? `Approval (${pendingCount})` : "Approval" },
+                { id: "run", label: "运行" },
+                { id: "files", label: "文件" },
+                { id: "tool", label: "工具" },
+                { id: "trace", label: "链路" },
+                { id: "approval", label: pendingCount > 0 ? `审批 (${pendingCount})` : "审批" },
               ]}
               active={tab}
               onChange={setTab}
@@ -127,12 +133,12 @@ function RunTab({
   onSelect: (id: string) => void;
 }) {
   if (runs.length === 0) {
-    return <div className="py-10 text-center text-xs text-muted-foreground">尚无 Run —— 发送第一条指令后创建</div>;
+    return <div className="py-10 text-center text-xs text-muted-foreground">尚无运行——发送第一条指令后创建</div>;
   }
   return (
     <div className="flex flex-col gap-1.5">
       <div className="mb-1 text-[11px] text-muted-foreground">
-        每条新指令 → 新 Run；批准恢复 → 同一 Run
+        每条新指令开始一次新运行；审批通过后恢复同一运行
       </div>
       {runs.map((run) => (
         <button
@@ -144,7 +150,7 @@ function RunTab({
           )}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-foreground">Run #{run.index}</span>
+            <span className="text-[13px] font-medium text-foreground">运行 #{run.index}</span>
             <RunStatusBadge status={run.status} />
           </div>
           <div className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -162,7 +168,7 @@ function RunTab({
 
 function FilesTab({ run }: { run?: Run }) {
   if (!run || run.files.length === 0) {
-    return <div className="py-10 text-center text-xs text-muted-foreground">该 Run 未修改文件</div>;
+    return <div className="py-10 text-center text-xs text-muted-foreground">该运行未修改文件</div>;
   }
   return (
     <div className="flex flex-col gap-1.5">
@@ -171,7 +177,9 @@ function FilesTab({ run }: { run?: Run }) {
           <div className="flex items-center gap-2">
             <FileDiff size={13} className="shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate font-mono text-xs text-foreground">{f.path}</span>
-            <Badge tone={f.change === "created" ? "success" : "info"}>{f.change}</Badge>
+            <Badge tone={f.change === "created" ? "success" : "info"}>
+              {f.change === "created" ? "新建" : "修改"}
+            </Badge>
           </div>
           <div className="mt-1 pl-5 font-mono text-[11px] text-muted-foreground">{f.diffSummary}</div>
         </div>
@@ -186,39 +194,65 @@ function decisionTone(decision: ToolCall["decision"]) {
 
 function ToolTab({ run }: { run?: Run }) {
   if (!run || run.toolCalls.length === 0) {
-    return <div className="py-10 text-center text-xs text-muted-foreground">该 Run 没有 Tool 调用</div>;
+    return <div className="py-10 text-center text-xs text-muted-foreground">该运行没有工具调用</div>;
   }
   return (
     <div className="flex flex-col gap-2">
       <div className="mb-1 text-[11px] text-muted-foreground">
-        完整 Tool Request / Result 与 Policy Decision（统一执行链：Built-in 与 MCP 一致）
+        默认显示人类可读摘要；原始请求 / 结果 / 版本绑定在「技术详情」折叠区
       </div>
-      {run.toolCalls.map((c) => (
-        <div key={c.id} className="rounded-xl border border-border px-3 py-2.5">
-          <div className="flex items-center gap-2">
-            <span className="min-w-0 flex-1 truncate font-mono text-xs font-medium text-foreground">{c.toolName}</span>
-            <Badge tone={decisionTone(c.decision)}>{c.decision}</Badge>
-            <Badge
-              tone={c.status === "SUCCEEDED" ? "success" : c.status === "AWAITING_APPROVAL" ? "warning" : c.status === "REJECTED" ? "danger" : "neutral"}
-            >
-              {c.status === "AWAITING_APPROVAL" ? "等待审批" : c.status === "SUCCEEDED" ? "成功" : c.status === "REJECTED" ? "已拒绝" : c.status}
-            </Badge>
+      {run.toolCalls.map((c) => {
+        const summary = toolCallSummary(c.toolName, c.argsDigest);
+        const result = c.resultDigest
+          ? toolCallResultSummary(c.toolName, c.resultDigest)
+          : undefined;
+        return (
+          <div key={c.id} className="rounded-xl border border-border px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className="min-w-0 flex-1 truncate text-xs font-medium text-foreground">
+                {toolDisplayName(c.toolName)}
+              </span>
+              <Badge tone={decisionTone(c.decision)}>{toolDecisionLabel(c.decision)}</Badge>
+              <Badge
+                tone={
+                  c.status === "SUCCEEDED"
+                    ? "success"
+                    : c.status === "AWAITING_APPROVAL"
+                      ? "warning"
+                      : c.status === "REJECTED" || c.status === "FAILED"
+                        ? "danger"
+                        : "neutral"
+                }
+              >
+                {toolCallStatusLabel(c.status)}
+              </Badge>
+            </div>
+            {summary ? <div className="mt-1.5 text-xs text-foreground">{summary}</div> : null}
+            {c.resultDigest ? (
+              <div className="mt-0.5 text-xs text-success">{result ?? c.resultDigest}</div>
+            ) : null}
+            <details className="mt-1.5">
+              <summary className="cursor-pointer select-none text-[11px] text-muted-foreground/70 transition-colors hover:text-foreground">
+                技术详情
+              </summary>
+              <div className="mt-1 space-y-0.5 break-words font-mono text-[11px] text-muted-foreground">
+                <div>tool: {c.toolName}</div>
+                <div>version: {c.toolVersionId} · provider: {c.provider}</div>
+                <div>args: {c.argsDigest}</div>
+                {c.resource ? <div>resource: {c.resource}</div> : null}
+                {c.resultDigest ? <div className="text-success">result: {c.resultDigest}</div> : null}
+              </div>
+            </details>
           </div>
-          <div className="mt-1.5 space-y-1 font-mono text-[11px] text-muted-foreground">
-            <div>version: {c.toolVersionId} · {c.provider}</div>
-            <div className="truncate">args: {c.argsDigest}</div>
-            {c.resource ? <div className="truncate">resource: {c.resource}</div> : null}
-            {c.resultDigest ? <div className="truncate text-success">result: {c.resultDigest}</div> : null}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 function TraceTab({ run }: { run?: Run }) {
   if (!run) {
-    return <div className="py-10 text-center text-xs text-muted-foreground">尚无 Trace</div>;
+    return <div className="py-10 text-center text-xs text-muted-foreground">暂无链路记录</div>;
   }
   return (
     <div className="trace-rail flex flex-col gap-3 pb-2">
@@ -265,22 +299,26 @@ function ApprovalTab({ taskId }: { taskId: string }) {
     <div className="flex flex-col gap-2.5">
       <div className="flex items-start gap-1.5 rounded-lg bg-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-warning">
         <ShieldCheck size={13} className="mt-0.5 shrink-0" />
-        批准的是本次精确请求（action / resource / arguments），不是给 Agent 永久放行。
+        批准的是本次精确请求（动作 / 资源 / 参数），不是给 Agent 永久放行。
       </div>
       {taskApprovals.map((a) => (
         <div key={a.id} className="rounded-xl border border-border px-3 py-3">
           <div className="flex items-center gap-2">
-            <span className="min-w-0 flex-1 truncate font-mono text-xs font-semibold text-foreground">{a.toolName}</span>
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+              {toolDisplayName(a.toolName)}
+            </span>
             <Badge tone={a.status === "PENDING" ? "warning" : a.status === "APPROVED" ? "success" : "danger"}>
               {approvalStatusLabel(a.status)}
             </Badge>
           </div>
           <div className="mt-1.5 space-y-1 text-[11px] text-muted-foreground">
-            <div className="truncate">resource: {a.resource}</div>
-            <div className="break-words font-mono">args: {a.argsDigest}</div>
-            <div>policy: {a.policyName} · risk: {a.riskLevel}</div>
+            <div className="truncate">资源：{a.resource}</div>
+            <div className="break-words font-mono">参数：{a.argsDigest}</div>
             <div>
-              Run #{task?.runs.find((r) => r.id === a.runId)?.index ?? "—"} 的精确请求 · requested{" "}
+              策略：{a.policyName} · 风险等级：{riskLevelLabel(a.riskLevel)}
+            </div>
+            <div>
+              运行 #{task?.runs.find((r) => r.id === a.runId)?.index ?? "—"} 的精确请求 · 请求于{" "}
               {formatTime(a.requestedAt)}
             </div>
             {a.status !== "PENDING" ? (
@@ -308,7 +346,7 @@ function ApprovalTab({ taskId }: { taskId: string }) {
                   }}
                 >
                   <Check size={12} />
-                  Approve
+                  批准
                 </Button>
                 <Button
                   variant="danger"
@@ -319,7 +357,7 @@ function ApprovalTab({ taskId }: { taskId: string }) {
                   }}
                 >
                   <X size={12} />
-                  Reject
+                  拒绝
                 </Button>
               </div>
             </div>
@@ -338,13 +376,13 @@ export function WaitingApprovalBanner({ taskId, onOpenInspector }: { taskId: str
     <div className="mx-auto mb-2 flex w-full max-w-3xl items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
       <AlertTriangle size={14} className="shrink-0" />
       <span className="min-w-0 flex-1 truncate">
-        <span className="font-medium">{pending.toolName}</span> 等待审批（{pending.resource}）
+        <span className="font-medium">{toolDisplayName(pending.toolName)}</span> 等待审批（{pending.resource}）
       </span>
       <button
         onClick={onOpenInspector}
         className="focus-ring shrink-0 rounded-md border border-warning/50 px-2 py-0.5 font-medium hover:bg-warning/20"
       >
-        到 Inspector 处理
+        到执行详情处理
       </button>
     </div>
   );

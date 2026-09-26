@@ -68,7 +68,8 @@ Administration 骨架（可点击即可，不深做）：
 - [x] Store scoped tests：13 项通过（Task 固定 Agent、新指令新 Run、审批同 Run 恢复、Reject、Clone 快照、Publish 只读、createDraftFromPublished v2、Conversation P1 语义、Tab 模型）
 - [x] 浏览器走查：DESIGN.md §20 的 25 项 Employee Workspace 交互全部可点击演示（含同一 Agent 多 Task 多 Tab、Waiting Approval → 批准 → 同一 Run 完成的完整链路）
 - [x] Stage Gate 验证：`pnpm -r typecheck` / `pnpm -r lint` / `pnpm -r test` / `pnpm -r build` 全部通过
-- [x] Post-Gate UX correction（2026-09-26）：Employee Workspace 与 Administration 拆分为两个 Shell——Sidebar 辅助入口改为 我的审批 / 管理员 / More（My Approvals 中文化），治理模块不再在员工 Sidebar 展开；「管理员」入口（按 WORKSPACE_ADMIN 角色 + Admin 视角能力判定）进入独立 Admin Shell（7 个治理入口、active 跟随路由、返回工作区、无员工 History / Tab Bar，`/admin` → `/admin/models`）；History 增加 全部 / 任务 / 会话 视图过滤（纯函数 `lib/history.ts` + 5 项单测）。实现见 `components/shell/AdminShell.tsx`、`(workspace)` / `(admin)` route groups。Scoped 验证：web-console typecheck / lint / vitest 18 项 / 浏览器 smoke（过滤、Admin Shell 结构与守卫、Tab 保持）全部通过
+- [x] Post-Gate UX correction（2026-09-26）：Employee Workspace 与 Administration 拆分为两个 Shell——Sidebar 辅助入口改为 我的审批 / 管理员 / 更多 / 设置（My Approvals 中文化），治理模块不再在员工 Sidebar 展开；「管理员」入口（按 WORKSPACE_ADMIN 角色 + Admin 视角能力判定）进入独立 Admin Shell（7 个治理入口、active 跟随路由、返回工作区、无员工 History / Tab Bar，`/admin` → `/admin/models`）；History 增加 全部 / 任务 / 会话 视图过滤（纯函数 `lib/history.ts` + 5 项单测）。实现见 `components/shell/AdminShell.tsx`、`(workspace)` / `(admin)` route groups。Scoped 验证：web-console typecheck / lint / vitest 18 项 / 浏览器 smoke（过滤、Admin Shell 结构与守卫、Tab 保持）全部通过
+- [x] Compact history, Chinese UI, Agent/Skill chips, Agent card actions and custom selectors（2026-09-26，第二轮 Post-Gate UX Polish）：History 去除 今天/昨天/更早 分组改为 updatedAt 倒序紧凑单行列表（Conversation=会话图标、Task=Agent Avatar 固定行尾，`lib/history.ts` 重写 + 单测更新）；Agent Card 动作改为 启动/停用（左）+ 启动任务（右，仅 ENABLED），删除三点菜单；`/skill` 按钮改「技能」并同步空状态引导；新增共享 `Chip`（Agent/Skill 统一 chip 语言，Existing Task 只读无 ×）与 `SelectMenu`（自绘下拉，Agent Editor 模型 / Create Skill 分类改用，删除原生 `<select>` 包装）；日常使用界面隐藏版本号（会话 Skill Chip、任务 Agent Chip、技能选择器、Composer 候选；exact 绑定不变）；Inspector 更名「执行详情」+ 五 Tab 中文化 + 工具调用人类可读摘要（`lib/tool-display.ts`：builtin.* 中文名 / 决策与结果中文，原始 ID 收进「技术详情」折叠区）；Admin Shell 七入口与各管理页 / 我的审批 / 设置中文化。设计记录见 `frontend/DESIGN.md` §18 / §21
 
 ### In Progress
 - [ ]（无）
@@ -78,4 +79,5 @@ Administration 骨架（可点击即可，不深做）：
 
 **Stage 01 Gate：通过（2026-09-26）。证据见 `docs/stages/01-stage-review.md`。**
 **Post-Gate UX correction：完成（2026-09-26）。**
+**Post-Gate UX Polish（第二轮收口）：完成（2026-09-26）。**
 

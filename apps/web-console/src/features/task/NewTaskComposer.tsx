@@ -4,14 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bot, Info } from "lucide-react";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { Avatar, Badge } from "@/components/ui/primitives";
+import { Avatar, Chip } from "@/components/ui/primitives";
 import { Dropdown, DropdownItem } from "@/components/ui/overlay";
 import { COMPOSER_TAB_KEY, useWorkspaceStore } from "@/lib/store/workspace-store";
 
 /**
- * New Task Composer（§7.1，尚未持久化）。
- * Agent Selector 只存在于这里：候选 = Personal Agent + ENABLED + 有 Published
- * Version。第一次发送消息时才创建 Task 并固定 agentId + exact agentVersionId。
+ * New Task Composer（§7.1 / §21，尚未持久化）。
+ * Agent 选择以 Chip 呈现在输入框上方：未选择时为 [选择 Agent] 入口，选中后为
+ * [Avatar 名称 ×]（× 仅在 Task 创建前可取消选择）。候选 = Personal Agent +
+ * ENABLED + 有 Published Version；不显示版本号（exact 绑定在创建时固定）。
+ * 第一次发送消息时才创建 Task 并固定 agentId + exact agentVersionId。
  */
 export function NewTaskComposer() {
   const router = useRouter();
@@ -42,11 +44,10 @@ export function NewTaskComposer() {
     [agents],
   );
   const selected = composerAgentId ? agents[composerAgentId] : undefined;
-  const selectedVersion = selected?.versions.find((v) => v.id === selected.publishedVersionId);
 
   function onSubmit() {
     if (!selected) {
-      setError("请先在下方选择一个 Agent");
+      setError("请先在输入框上方选择一个 Agent");
       return;
     }
     const taskId = useWorkspaceStore.getState().createTaskFromComposer(selected.id, draft.trim());
@@ -80,31 +81,26 @@ export function NewTaskComposer() {
         {error ? (
           <div className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>
         ) : null}
-        <ChatInput
-          value={draft}
-          onChange={(v) => {
-            setError(null);
-            useWorkspaceStore.getState().setTabDraft(COMPOSER_TAB_KEY, v);
-          }}
-          onSubmit={onSubmit}
-          placeholder="输入任务指令，例如：修复仓库登录超时 Bug…"
-          footer={
+        {/* Agent Chip 行：创建前可选择 / 取消；创建后 Task 固定 Agent（不可 × / 切换） */}
+        <div className="mb-2 flex min-h-7 flex-wrap items-center gap-1.5">
+          {selected ? (
+            <Chip
+              icon={<Avatar emoji={selected.avatarEmoji} color={selected.avatarColor} size="xs" />}
+              label={selected.name}
+              title="已选择的 Agent；发送第一条指令后将与任务绑定，不可更换"
+              removeLabel="取消选择该 Agent"
+              onRemove={() => useWorkspaceStore.getState().openComposerTab(null)}
+            />
+          ) : (
             <Dropdown
               trigger={
-                selected ? (
-                  <button className="focus-ring flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-left text-xs hover:bg-accent">
-                    <Avatar emoji={selected.avatarEmoji} color={selected.avatarColor} size="sm" />
-                    <span className="font-medium text-foreground">{selected.name}</span>
-                    <Badge tone="info">{selectedVersion?.version ?? "—"}</Badge>
-                    <span className="text-muted-foreground">▾</span>
-                  </button>
-                ) : (
-                  <button className="focus-ring flex items-center gap-2 rounded-lg border border-dashed border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent">
-                    <Bot size={14} />
-                    选择 Agent
-                    <span>▾</span>
-                  </button>
-                )
+                <button
+                  type="button"
+                  className="focus-ring inline-flex h-7 items-center gap-1.5 rounded-full border border-dashed border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <Bot size={13} />
+                  选择 Agent
+                </button>
               }
             >
               {(close) => (
@@ -115,32 +111,39 @@ export function NewTaskComposer() {
                   {candidates.length === 0 ? (
                     <div className="px-2.5 py-2 text-xs text-muted-foreground">暂无可用 Agent</div>
                   ) : (
-                    candidates.map((agent) => {
-                      const version = agent.versions.find((v) => v.id === agent.publishedVersionId);
-                      return (
-                        <DropdownItem
-                          key={agent.id}
-                          onClick={() => {
-                            useWorkspaceStore.getState().openComposerTab(agent.id);
-                            close();
-                          }}
-                        >
-                          <span className="flex items-center gap-2">
-                            <Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} size="sm" />
-                            <span className="font-medium">{agent.name}</span>
-                            <Badge tone="neutral">{version?.version}</Badge>
-                          </span>
-                        </DropdownItem>
-                      );
-                    })
+                    candidates.map((agent) => (
+                      <DropdownItem
+                        key={agent.id}
+                        onClick={() => {
+                          useWorkspaceStore.getState().openComposerTab(agent.id);
+                          setError(null);
+                          close();
+                        }}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} size="sm" />
+                          <span className="font-medium">{agent.name}</span>
+                        </span>
+                      </DropdownItem>
+                    ))
                   )}
                 </div>
               )}
             </Dropdown>
-          }
+          )}
+        </div>
+        <ChatInput
+          value={draft}
+          onChange={(v) => {
+            setError(null);
+            useWorkspaceStore.getState().setTabDraft(COMPOSER_TAB_KEY, v);
+          }}
+          onSubmit={onSubmit}
+          placeholder="输入任务指令，例如：修复仓库登录超时 Bug…"
+          footer={<span />}
         />
         <div className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
-          发送后将创建 Task 并固定该 Agent 的 Published Version（P12 / P17）
+          发送后将创建任务，并固定该 Agent 当前的已发布版本（P12 / P17）
         </div>
       </div>
     </div>

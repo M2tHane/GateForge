@@ -339,12 +339,12 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             if (step.usage) run.usage = step.usage;
             run.events.push({
               id: nid("evt"), runId, type: "state",
-              title: `Run #${run.index} ${step.endStatus === "COMPLETED" ? "完成（RUNNING → COMPLETED）" : "失败"}`,
+              title: `运行 #${run.index} ${step.endStatus === "COMPLETED" ? "完成（RUNNING → COMPLETED）" : "失败"}`,
               at,
             });
             task.messages.push({
               id: nid("msg"), role: "system", kind: "run-status",
-              content: `Run #${run.index} ${step.endStatus === "COMPLETED" ? "已完成" : "失败"}`,
+              content: `运行 #${run.index} ${step.endStatus === "COMPLETED" ? "已完成" : "失败"}`,
               createdAt: at, runId,
             });
             task.updatedAt = at;
@@ -620,7 +620,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
             events: [
               {
                 id: nid("evt"), runId, type: "state",
-                title: `Run #${task.runs.length + 1} 开始（CREATED → RUNNING）`, at,
+                title: `运行 #${task.runs.length + 1} 开始（CREATED → RUNNING）`, at,
               },
             ],
             toolCalls: [],
@@ -680,7 +680,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               id: nid("msg"), role: "system", kind: "run-status",
               content:
                 decision === "APPROVED"
-                  ? `已批准 ${apr.toolName} · 同一 Run #${run.index} 恢复执行`
+                  ? `已批准 ${apr.toolName} · 同一运行 #${run.index} 恢复执行`
                   : `已拒绝 ${apr.toolName} · 本次请求不放行`,
               createdAt: at, runId: run.id,
             });
@@ -708,7 +708,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                 run.usage = { inputTokens: 5800, outputTokens: 2100, costUsd: 0.116 };
                 run.events.push({
                   id: nid("evt"), runId: run.id, type: "state",
-                  title: `Run #${run.index} 完成（RUNNING → COMPLETED）`, at,
+                  title: `运行 #${run.index} 完成（RUNNING → COMPLETED）`, at,
                 });
               }
             } else {
@@ -729,7 +729,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                 run.usage = { inputTokens: 5200, outputTokens: 1800, costUsd: 0.1 };
                 run.events.push({
                   id: nid("evt"), runId: run.id, type: "state",
-                  title: `Run #${run.index} 完成（RUNNING → COMPLETED）`, at,
+                  title: `运行 #${run.index} 完成（RUNNING → COMPLETED）`, at,
                 });
               }
             }
