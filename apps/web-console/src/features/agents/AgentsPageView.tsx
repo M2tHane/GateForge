@@ -3,10 +3,8 @@
 /**
  * Agents 页面（DESIGN.md §9 / §21）：Personal Agent Card Grid。
  *
- * Card 至少展示 Avatar / Name / Created At / 状态（可用 · 已停用）/ 主操作。
- * 操作统一右对齐：DISABLED → [启用] + 灰色禁用的 [启动任务]；
- * ENABLED → [停用] + 可用的 [启动任务]。
- * 不再使用三点菜单承载主要操作。
+ * Card 展示 Avatar / Name / Created At / Published Version，右上角 Switch 控制启用状态。
+ * DISABLED 时 [启动任务] 保持灰色不可点击；ENABLED 时可直接启动任务。
  *
  * 渲染契约：mock store 的嵌套变更原地发生，这里按 store 约定整店订阅，
  * 不做依赖对象引用的 memo。
@@ -15,8 +13,8 @@ import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { useWorkspaceNav } from "@/components/shell/nav";
-import { Avatar, Badge, Button, Card, EmptyState, StatusDot } from "@/components/ui/primitives";
-import { agentStatusLabel, formatDate } from "@/lib/format";
+import { Avatar, Badge, Button, Card, EmptyState, Switch } from "@/components/ui/primitives";
+import { formatDate } from "@/lib/format";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { publishedVersionOf } from "@/features/agents/helpers";
 
@@ -63,62 +61,47 @@ export function AgentsPageView() {
                   key={agent.id}
                   interactive
                   onClick={() => router.push(`/agents/${agent.id}`)}
-                  className="flex flex-col gap-3"
+                  className="flex min-h-44 flex-col gap-4"
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-3">
                     <Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} size="lg" />
-                    <div className="flex flex-col items-end gap-1">
-                      {published ? <Badge tone="info">{published.version}</Badge> : null}
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <div className="truncate pr-12 text-[15px] font-semibold text-foreground">
+                        {agent.name}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                        <span>创建：{formatDate(agent.createdAt)}</span>
+                        <span className="text-border">·</span>
+                        <span>版本：{published?.version ?? "未发布"}</span>
+                      </div>
                       {agent.draftVersionId ? (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/agents/${agent.id}/edit`);
                           }}
-                          className="focus-ring rounded-full"
+                          className="focus-ring mt-2 rounded-full"
                           title="进入编辑器继续该草稿"
                         >
                           <Badge tone="warning">草稿待发布</Badge>
                         </button>
                       ) : null}
                     </div>
+                    <Switch
+                      checked={enabled}
+                      label={enabled ? `停用 ${agent.name}` : `启用 ${agent.name}`}
+                      onCheckedChange={(checked) =>
+                        useWorkspaceStore
+                          .getState()
+                          .setAgentStatus(agent.id, checked ? "ENABLED" : "DISABLED")
+                      }
+                    />
                   </div>
 
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-foreground">{agent.name}</div>
-                    <div className="mt-1.5 text-xs text-muted-foreground">
-                      创建：{formatDate(agent.createdAt)}
-                    </div>
-                    <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <StatusDot tone={enabled ? "success" : "neutral"} />
-                      {agentStatusLabel(agent.status)}
-                    </div>
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-end gap-2 pt-1">
-                    {enabled ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          useWorkspaceStore.getState().setAgentStatus(agent.id, "DISABLED");
-                        }}
-                      >
-                        停用
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          useWorkspaceStore.getState().setAgentStatus(agent.id, "ENABLED");
-                        }}
-                      >
-                        启用
-                      </Button>
-                    )}
+                  <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/70 pt-3">
+                    <span className="text-xs text-muted-foreground">
+                      {enabled ? "已启用" : "已停用"}
+                    </span>
                     <Button
                       size="sm"
                       variant="primary"

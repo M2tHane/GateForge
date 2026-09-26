@@ -203,6 +203,27 @@ describe("skill clone (Snapshot Copy)", () => {
     expect(clone.currentVersionId).not.toBe("sv_jb_v120"); // new exact version
     expect(clone.versions[0].changelog).toContain("Clone 自");
   });
+
+  it("createPersonalSkill can import a source version as an editable independent snapshot", () => {
+    const source = useWorkspaceStore.getState().skills.skill_java_backend;
+    const sourceName = source.name;
+    const skillId = useWorkspaceStore.getState().createPersonalSkill({
+      name: `${sourceName} - 我的版本`,
+      description: "导入后调整过的描述",
+      categoryId: source.categoryId,
+      sourceSkillVersionId: source.currentVersionId,
+    });
+
+    const imported = useWorkspaceStore.getState().skills[skillId];
+    expect(imported.scope).toBe("PERSONAL");
+    expect(imported.sourceSkillVersionId).toBe(source.currentVersionId);
+    expect(imported.currentVersionId).not.toBe(source.currentVersionId);
+    expect(imported.versions[0].version).toBe("v1.0.0");
+    expect(imported.versions[0].changelog).toContain("导入自");
+
+    source.name = "源 Skill 后续改名";
+    expect(useWorkspaceStore.getState().skills[skillId].name).toBe(`${sourceName} - 我的版本`);
+  });
 });
 
 describe("conversation (P1: no agent, no run, exact skill binding)", () => {

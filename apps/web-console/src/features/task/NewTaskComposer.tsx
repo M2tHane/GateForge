@@ -140,6 +140,8 @@ export function NewTaskComposer() {
           }}
           onSubmit={onSubmit}
           placeholder="输入任务指令，例如：修复仓库登录超时 Bug…"
+          disabled={!selected}
+          disabledHint="请先选择一个 Agent"
           footer={<span />}
         />
         <div className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">

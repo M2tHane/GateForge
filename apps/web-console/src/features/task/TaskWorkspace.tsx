@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Bot, CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatScrollArea, MessageList } from "@/components/chat/MessageList";
 import { Avatar, Badge, Chip, EmptyState } from "@/components/ui/primitives";
@@ -126,23 +126,23 @@ export function TaskWorkspace() {
               当前运行 #{currentRun?.index} 尚未结束（{runStatusLabel(currentRun?.status ?? "RUNNING")}）——等它完成后再发送新指令。
             </div>
           ) : null}
-          {/* Existing Task：Agent 只读 Chip——无 ×、不可切换、不显示版本号（P17 / §21） */}
+          {/* Existing Task：Agent 只读 Chip——悬浮在输入框上方，无 ×、不可切换（P17 / §21） */}
+          <div className="mb-2 flex min-h-7 flex-wrap items-center gap-1.5">
+            <Chip
+              icon={<Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} size="xs" />}
+              label={agent.name}
+              title="任务创建后固定该 Agent 与其精确版本，不可取消或切换"
+            />
+          </div>
           <ChatInput
             value={draft}
             onChange={(v) => useWorkspaceStore.getState().setTabDraft(tabKey, v)}
             onSubmit={onSubmit}
             placeholder="继续告诉 Agent…"
-            footer={
-              <Chip
-                icon={<Avatar emoji={agent.avatarEmoji} color={agent.avatarColor} size="xs" />}
-                label={agent.name}
-                title="任务创建后固定该 Agent 与其精确版本（不可切换；如需更换请新建任务）"
-              />
-            }
+            footer={<span />}
           />
-          <div className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] text-muted-foreground/70">
-            <Bot size={11} />
-            要换 Agent？请使用左侧「＋ 新建任务」——当前任务固定使用 {agent.name}
+          <div className="mt-1.5 px-1 text-[11px] text-muted-foreground/70">
+            当前任务固定使用 {agent.name}，Agent 与精确版本已锁定
           </div>
         </div>
       </div>

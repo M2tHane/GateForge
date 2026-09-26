@@ -2,9 +2,8 @@
 
 /**
  * Skills 页面（DESIGN.md §13）：Scope Tabs（平台 / 团队 / 我的）+ Category
- * 过滤 + Skill Cards。员工可 Enable / Disable 可见 Skill、克隆平台 / 团队
- * Skill 为快照副本（P7/P9，记录 sourceSkillVersionId，版本独立 v1.0.0）、
- * 创建 / 查看自己的 Personal Skill。
+ * 过滤 + Skill Cards。员工可 Enable / Disable 可见 Skill；Personal Skill 的导入
+ * 统一放在创建流程中，按 Snapshot Copy 记录 sourceSkillVersionId（P7/P9）。
  *
  * 渲染契约：mock 嵌套状态原地可变（setSkillEnabled / cloneSkill 不更换
  * skills record 引用），按 store 约定使用整状态订阅，派生列表不做引用 memo。
@@ -13,7 +12,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
-import { Badge, Button, Card, EmptyState } from "@/components/ui/primitives";
+import { Badge, Button, Card, EmptyState, Switch, type BadgeTone } from "@/components/ui/primitives";
 import { Tabs } from "@/components/ui/overlay";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { scopeLabel } from "@/lib/format";
@@ -24,8 +23,7 @@ import { cn } from "@/lib/utils";
 const CATEGORY_ALL = "all";
 
 export function SkillsPageView() {
-  const { skills, categories, currentUser, viewAsAdmin, setSkillEnabled, cloneSkill } =
-    useWorkspaceStore();
+  const { skills, categories, currentUser, viewAsAdmin, setSkillEnabled } = useWorkspaceStore();
   const router = useRouter();
 
   const [scope, setScope] = useState<Scope>(() => peekHandoffScope() ?? "WORKSPACE");
@@ -57,17 +55,12 @@ export function SkillsPageView() {
     return undefined;
   }
 
-  function handleClone(skill: Skill) {
-    cloneSkill(skill.currentVersionId); // Snapshot Copy：克隆当前 Published Version
-    setScope("PERSONAL"); // 成功后自动切到「我的」Tab
-  }
-
   const emptyCopy: Record<Scope, { title: string; description?: string }> = {
     WORKSPACE: { title: "暂无平台 Skill" },
     TEAM: { title: "暂无团队 Skill", description: "团队 Skill 仅对你所属的团队可见" },
     PERSONAL: {
       title: "暂无我的 Skill",
-      description: "从平台 / 团队 Skill 克隆，或通过右上角「创建 Skill」从空白创建",
+      description: "通过右上角「创建 Skill」从空白创建，或导入平台 / 团队 / 自己的已有 Skill",
     },
   };
 
@@ -75,7 +68,7 @@ export function SkillsPageView() {
     <div className="flex h-full flex-col">
       <PageHeader
         title="Skills"
-        description="平台 / 团队 / 我的 Skill，可启用 / 停用 / 克隆"
+        description="平台 / 团队 / 我的 Skill，可独立启用或停用"
         actions={
           <Button variant="primary" onClick={() => router.push("/skills/new")}>
             <Plus size={14} />
@@ -134,8 +127,7 @@ export function SkillsPageView() {
                   skill={skill}
                   categoryName={categoryNameOf(skill)}
                   sourceName={sourceNameOf(skill)}
-                  onToggleEnabled={() => setSkillEnabled(skill.id, !skill.enabledByMe)}
-                  onClone={() => handleClone(skill)}
+                  onToggleEnabled={(checked) => setSkillEnabled(skill.id, checked)}
                 />
               ))}
             </div>
@@ -151,50 +143,52 @@ function SkillCard({
   categoryName,
   sourceName,
   onToggleEnabled,
-  onClone,
 }: {
   skill: Skill;
   categoryName: string;
   sourceName?: string;
-  onToggleEnabled: () => void;
-  onClone: () => void;
+  onToggleEnabled: (checked: boolean) => void;
 }) {
   const currentVersion = skill.versions.find((v) => v.id === skill.currentVersionId);
-  const canClone = skill.scope === "WORKSPACE" || skill.scope === "TEAM";
+  const categoryTone: Record<string, BadgeTone> = {
+    cat_dev: "info",
+    cat_design: "accent",
+    cat_test: "warning",
+    cat_data: "success",
+    cat_ops: "danger",
+  };
 
   return (
-    <Card className="flex h-full flex-col gap-2">
+    <Card className="flex min-h-40 h-full flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-medium text-foreground">{skill.name}</span>
-            {!skill.enabledByMe ? <Badge>已停用</Badge> : null}
+            <Badge tone={categoryTone[skill.categoryId] ?? "neutral"}>{categoryName}</Badge>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {categoryName} · {scopeLabel(skill.scope)}
+            {scopeLabel(skill.scope)}
             {skill.teamName ? ` · ${skill.teamName}` : ""}
+            {` · ${currentVersion?.version ?? "—"}`}
           </div>
         </div>
-        <Badge tone="neutral">{currentVersion?.version ?? "—"}</Badge>
+        <Switch
+          checked={skill.enabledByMe}
+          label={skill.enabledByMe ? `停用 ${skill.name}` : `启用 ${skill.name}`}
+          onCheckedChange={onToggleEnabled}
+        />
       </div>
 
       <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{skill.description}</p>
 
       {sourceName ? (
         <div className="text-[11px] text-muted-foreground">
-          克隆自 {sourceName} · 快照副本，源 Skill 更新不影响
+          导入自 {sourceName} · 快照副本，源 Skill 更新不影响
         </div>
       ) : null}
 
-      <div className="mt-auto flex items-center gap-2 pt-1.5">
-        <Button size="sm" variant="outline" onClick={onToggleEnabled}>
-          {skill.enabledByMe ? "停用" : "启用"}
-        </Button>
-        {canClone ? (
-          <Button size="sm" variant="secondary" onClick={onClone}>
-            克隆到我的
-          </Button>
-        ) : null}
+      <div className="mt-auto border-t border-border/70 pt-2 text-[11px] text-muted-foreground">
+        {skill.enabledByMe ? "已启用，可被选择使用" : "已停用，不会出现在可用 Skill 中"}
       </div>
     </Card>
   );

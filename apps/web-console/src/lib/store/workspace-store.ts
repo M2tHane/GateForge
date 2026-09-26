@@ -177,7 +177,12 @@ interface WorkspaceStore {
   setAgentStatus: (agentId: string, status: AgentStatus) => void;
 
   // ---- skills ----
-  createPersonalSkill: (input: { name: string; description: string; categoryId: string }) => string;
+  createPersonalSkill: (input: {
+    name: string;
+    description: string;
+    categoryId: string;
+    sourceSkillVersionId?: string;
+  }) => string;
   cloneSkill: (sourceSkillVersionId: string) => string;
   setSkillEnabled: (skillId: string, enabled: boolean) => void;
 
@@ -933,6 +938,18 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           const at = nowIso();
           mutate((s) => {
             const versionId = nid("sv");
+            let sourceLabel: string | undefined;
+            if (input.sourceSkillVersionId) {
+              for (const source of Object.values(s.skills)) {
+                const sourceVersion = source.versions.find(
+                  (version) => version.id === input.sourceSkillVersionId,
+                );
+                if (sourceVersion) {
+                  sourceLabel = `${source.name} ${sourceVersion.version}`;
+                  break;
+                }
+              }
+            }
             s.skills[skillId] = {
               id: skillId,
               name: input.name,
@@ -940,8 +957,15 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
               scope: "PERSONAL", // 普通员工创建 Skill 固定 PERSONAL
               categoryId: input.categoryId,
               ownerUserId: s.currentUser.id,
+              sourceSkillVersionId: input.sourceSkillVersionId,
               versions: [
-                { id: versionId, version: "v1.0.0", status: "PUBLISHED", publishedAt: at },
+                {
+                  id: versionId,
+                  version: "v1.0.0",
+                  status: "PUBLISHED",
+                  publishedAt: at,
+                  changelog: sourceLabel ? `导入自 ${sourceLabel}` : undefined,
+                },
               ],
               currentVersionId: versionId,
               enabledByMe: true,

@@ -1,50 +1,68 @@
 "use client";
 
 /**
- * 创建 Skill（DESIGN.md §13 右上 [+ 创建 Skill]）：两张选择卡——从模板创建
- * （克隆可见的平台 / 团队 Skill 为快照副本）与从空白创建（短表单，普通员工
- * Scope 固定 PERSONAL）。短表单页面内呈现（§17：复杂配置不塞 Modal）。
- *
- * 渲染契约：mock 嵌套状态原地可变，按 store 约定使用整状态订阅。
+ * 创建 Skill：可从平台 / 团队 / 自己的已有 Skill 导入为快照副本，自动填充
+ * 可编辑字段；也可从空白开始。普通员工创建后的 Scope 固定 PERSONAL。
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Badge, Button, FieldLabel, Input, Textarea } from "@/components/ui/primitives";
-import { SelectMenu } from "@/components/ui/overlay";
+import { SelectMenu, Tabs } from "@/components/ui/overlay";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { scopeLabel } from "@/lib/format";
 import { handoffScope } from "@/features/skills/tab-handoff";
-import type { Skill } from "@/lib/types";
+import type { Scope, Skill } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export function CreateSkillPageView() {
-  const { skills, categories, currentUser, cloneSkill, createPersonalSkill } = useWorkspaceStore();
+  const { skills, categories, currentUser, createPersonalSkill } = useWorkspaceStore();
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<string>(categories[0]?.id ?? "cat_dev");
+  const [importScope, setImportScope] = useState<Scope>("WORKSPACE");
+  const [sourceSkillVersionId, setSourceSkillVersionId] = useState<string | undefined>();
 
-  // 模板候选：可见的平台 / 团队 Skill（同 Skills 页可见性规则；增长团队不可见）
-  const templates = Object.values(skills).filter((skill) => {
-    if (skill.scope === "WORKSPACE") return true;
-    return skill.scope === "TEAM" && currentUser.teams.includes(skill.teamName ?? "");
+  const importCandidates = Object.values(skills).filter((skill) => {
+    if (skill.scope !== importScope) return false;
+    if (skill.scope === "TEAM" && !currentUser.teams.includes(skill.teamName ?? "")) return false;
+    return true;
   });
+
+  const selectedSource = sourceSkillVersionId
+    ? Object.values(skills).find((skill) => skill.currentVersionId === sourceSkillVersionId)
+    : undefined;
 
   function backToSkills() {
     handoffScope("PERSONAL");
     router.push("/skills");
   }
 
-  function handleClone(skill: Skill) {
-    cloneSkill(skill.currentVersionId); // Snapshot Copy：克隆当前 Published Version
-    backToSkills();
+  function importFrom(skill: Skill) {
+    setSourceSkillVersionId(skill.currentVersionId);
+    setName(skill.name);
+    setDescription(skill.description);
+    setCategoryId(skill.categoryId);
+  }
+
+  function startBlank() {
+    setSourceSkillVersionId(undefined);
+    setName("");
+    setDescription("");
+    setCategoryId(categories[0]?.id ?? "cat_dev");
   }
 
   function handleCreate() {
     const trimmed = name.trim();
     if (!trimmed) return;
-    createPersonalSkill({ name: trimmed, description: description.trim(), categoryId });
+    createPersonalSkill({
+      name: trimmed,
+      description: description.trim(),
+      categoryId,
+      sourceSkillVersionId,
+    });
     backToSkills();
   }
 
@@ -52,7 +70,7 @@ export function CreateSkillPageView() {
     <div className="flex h-full flex-col">
       <PageHeader
         title="创建 Skill"
-        description="从模板创建或从空白创建 · 普通员工 Scope 固定为「我的」"
+        description="导入已有 Skill 自动填充后再编辑，或直接从空白创建"
         actions={
           <Button variant="ghost" onClick={() => router.push("/skills")}>
             返回 Skills
@@ -61,55 +79,87 @@ export function CreateSkillPageView() {
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto grid max-w-6xl items-start gap-4 p-6 lg:grid-cols-2">
-          {/* 从模板创建 */}
-          <section className="surface flex flex-col rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-foreground">从模板创建</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              克隆平台 / 团队 Skill 为「我的」Skill——快照副本：记录来源版本，源 Skill 后续更新不影响。
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              {templates.length === 0 ? (
-                <div className="py-6 text-center text-xs text-muted-foreground">暂无可见模板</div>
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
+          <section className="surface overflow-hidden rounded-xl">
+            <div className="flex items-start justify-between gap-4 px-5 pt-5">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">导入已有 Skill</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  从平台、团队或自己的 Skill 复制当前发布版本，随后可自由修改；源 Skill 更新不会影响这里。
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={startBlank}>
+                从空白开始
+              </Button>
+            </div>
+
+            <Tabs
+              className="mt-3 px-5"
+              tabs={(["WORKSPACE", "TEAM", "PERSONAL"] as Scope[]).map((scope) => ({
+                id: scope,
+                label: scopeLabel(scope),
+              }))}
+              active={importScope}
+              onChange={(id) => setImportScope(id as Scope)}
+            />
+
+            <div className="grid gap-2 p-5 pt-4 md:grid-cols-2">
+              {importCandidates.length === 0 ? (
+                <div className="col-span-full rounded-lg border border-dashed border-border px-4 py-8 text-center text-xs text-muted-foreground">
+                  当前范围暂无可导入的 Skill
+                </div>
               ) : (
-                templates.map((skill) => {
-                  const version = skill.versions.find((v) => v.id === skill.currentVersionId);
+                importCandidates.map((skill) => {
+                  const version = skill.versions.find((item) => item.id === skill.currentVersionId);
+                  const selected = sourceSkillVersionId === skill.currentVersionId;
                   const categoryName =
-                    categories.find((c) => c.id === skill.categoryId)?.name ?? "—";
+                    categories.find((category) => category.id === skill.categoryId)?.name ?? "—";
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={skill.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border px-3.5 py-2.5"
+                      onClick={() => importFrom(skill)}
+                      className={cn(
+                        "focus-ring rounded-xl border px-4 py-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm",
+                        selected
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border bg-card hover:border-primary/35",
+                      )}
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-[13px] font-medium text-foreground">
-                            {skill.name}
-                          </span>
-                          <Badge tone="neutral">{version?.version ?? "—"}</Badge>
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-muted-foreground">
-                          {categoryName} · {scopeLabel(skill.scope)}
-                          {skill.teamName ? ` · ${skill.teamName}` : ""}
-                        </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="truncate text-[13px] font-medium text-foreground">
+                          {skill.name}
+                        </span>
+                        <Badge tone={selected ? "info" : "neutral"}>
+                          {selected ? "已导入" : version?.version ?? "—"}
+                        </Badge>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => handleClone(skill)}>
-                        克隆
-                      </Button>
-                    </div>
+                      <div className="mt-1.5 text-[11px] text-muted-foreground">
+                        {categoryName} · {scopeLabel(skill.scope)}
+                        {skill.teamName ? ` · ${skill.teamName}` : ""}
+                      </div>
+                    </button>
                   );
                 })
               )}
             </div>
           </section>
 
-          {/* 从空白创建 */}
           <section className="surface flex flex-col rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-foreground">从空白创建</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              创建「我的 Skill」：Scope 固定为「我的」，普通员工不能创建平台 / 团队 Skill。
-            </p>
-            <div className="mt-4 flex flex-1 flex-col gap-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">编辑并发布</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  创建后会成为「我的 Skill」，初始版本为 v1.0.0。
+                </p>
+              </div>
+              {selectedSource ? (
+                <Badge tone="info">来源：{selectedSource.name}</Badge>
+              ) : (
+                <Badge tone="neutral">从空白创建</Badge>
+              )}
+            </div>
+            <div className="mt-5 flex flex-1 flex-col gap-4">
               <div>
                 <FieldLabel>名称</FieldLabel>
                 <Input
@@ -137,10 +187,10 @@ export function CreateSkillPageView() {
               </div>
               <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-4">
                 <span className="text-[11px] text-muted-foreground">
-                  创建后版本为 v1.0.0，可在 Skills 页启用 / 绑定
+                  发布后可在 Skills 页随时启用或停用
                 </span>
                 <Button variant="primary" disabled={!name.trim()} onClick={handleCreate}>
-                  创建 Skill
+                  创建并发布
                 </Button>
               </div>
             </div>

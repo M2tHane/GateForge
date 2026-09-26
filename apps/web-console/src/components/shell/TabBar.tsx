@@ -35,13 +35,18 @@ export function TabBar() {
   function onClose(e: React.MouseEvent, key: string) {
     e.stopPropagation();
     const wasActive = key === activeTabKey;
-    const remaining = useWorkspaceStore.getState().tabs;
-    const idx = remaining.findIndex((t) => t.key === key);
+    const before = useWorkspaceStore.getState().tabs;
+    const idx = before.findIndex((t) => t.key === key);
     closeTab(key);
     if (wasActive) {
-      const neighbor = remaining[Math.min(idx, remaining.length - 2)];
-      if (neighbor) router.push(routeOf(neighbor));
-      // 关闭最后一个 Tab 时停留在当前页面（无路由跳转）
+      const remaining = useWorkspaceStore.getState().tabs;
+      const neighbor = remaining[Math.min(idx, remaining.length - 1)];
+      if (neighbor) {
+        router.push(routeOf(neighbor));
+        return;
+      }
+      const conversationId = useWorkspaceStore.getState().createDraftConversation();
+      router.push(`/conversation/${conversationId}`);
     }
   }
 
