@@ -35,7 +35,7 @@ Lucide React
 ## 4. 信息架构
 
 ```text
-Employee Workspace（所有用户默认）
+Employee Workspace Shell（所有用户默认）
 ├── 新建会话（Conversation）
 ├── 新建任务（Task）
 ├── Agents（Personal Agent Card Grid）
@@ -47,26 +47,23 @@ Employee Workspace（所有用户默认）
 │       ├─ 历史任务
 │       └─ 设置
 ├── Skills
-├── More
-│   ├─ My Approvals
-│   └─ Settings
+├── 我的审批
+├── 管理员（仅管理能力可见 → 进入 Administration Shell）
+├── More / Settings
+├── History（全部 / 任务 / 会话 过滤；今天 / 昨天 / 更早 分组）
 └── 多标签页主区域（Conversation / Task Tab）
 
-Administration（Admin / 授权角色额外可见）
-├── Overview
-├── Teams / Members
+Administration Shell（独立侧边栏，经「管理员」进入）
 ├── Models
-├── Tools
-│   ├─ Tool Registry（二级 Tab）
-│   └─ MCP Servers（二级 Tab）
+├── Tools / MCP Servers
 ├── Skill Categories
 ├── Policies
 ├── Approvals
-├── Budgets
+├── Teams
 └── Audit
 ```
 
-说明：Workspace Agent Templates 由 Workspace Admin 在 Agents 页的“平台模板”视图管理；Workspace Skills 由 Workspace Admin 在 Skills 页“平台”Tab 管理（见 §10、§14）。普通员工的导航中不出现 Administration 入口。
+说明：Workspace Agent Templates 由 Workspace Admin 在 Agents 页的“平台模板”视图管理；Workspace Skills 由 Workspace Admin 在 Skills 页“平台”Tab 管理（见 §10、§14）。Administration 不在 Employee Sidebar 内展开——「管理员」入口仅对具备管理能力的用户显示，点击后进入独立的 Administration Shell。Employee Workspace = 员工工作，Administration = 企业治理，两套信息架构不混在同一根 Sidebar 中。
 
 ## 5. App Shell
 
@@ -87,6 +84,14 @@ Skills
 
 ──────────────
 
+我的审批（待审批数角标）
+管理员（仅管理能力可见）
+More / Settings
+
+──────────────
+
+[全部] [任务] [会话]
+
 今天
   Conversation A
   Task B
@@ -98,13 +103,15 @@ Skills
 
 ──────────────
 
-More / Settings
+用户信息 · Admin 视角开关
 ```
 
 - `＋ 新建会话`：点击立即进入新的聊天工作区。
 - `＋ 新建任务`：左侧第二个固定入口，点击进入 New Task Composer（尚未持久化的新建任务界面，见 §7.1）。
 - 历史记录统一展示 Conversation + Task，按时间分组（今天 / 昨天 / 更早）。
-- **不默认显示** Overview / Runs / Tools / Models / Policies / Audit——这些治理入口在 Administration，不挤占员工日常导航。
+- 历史顶部的 `[全部] [任务] [会话]` 是 UI View State 过滤（默认全部）：全部 = Conversation + Task 混排，任务 = 只显示 Task，会话 = 只显示 Conversation；只过滤视图，不改业务数据模型。
+- **不默认显示** Overview / Runs / Tools / Models / Policies / Audit——这些治理入口在 Administration Shell，不挤占员工日常导航。
+- `管理员` 是 Administration 的唯一入口：点击进入独立 Administration Shell（§5.4），不在本 Sidebar 内展开治理子模块。
 - 不展示搜索框和用户资料大卡片。
 
 历史 item 样式：
@@ -141,9 +148,28 @@ Conversation / Task 点击后在主区域打开 Tab，顶部类似 IDE：
 
 高度 56px 左右：Breadcrumb、当前页面主要 Action、可选状态提示。不放全局搜索框。
 
-### 5.4 Administration 入口
+### 5.4 Administration Shell
 
-Workspace Admin / 授权角色登录后，左侧导航底部（More 上方）额外出现 Administration 分组（Overview / Teams / Models / Tools / Skill Categories / Policies / Approvals / Budgets / Audit）。普通 Employee 不可见。
+Administration 不在 Employee Sidebar 内展开。具备管理能力的用户（Workspace Admin / 授权角色；Stage 01 mock 以 Admin 视角开关模拟）在 Sidebar 辅助入口看到唯一的「管理员」入口，点击直接进入 `/admin/models` 的独立 Administration Shell：
+
+```text
+GateForge Admin
+──────────────
+Models
+Tools / MCP Servers
+Skill Categories
+Policies
+Approvals
+Teams
+Audit
+──────────────
+用户信息 · 返回工作区
+```
+
+- 独立左侧栏承载 7 个治理模块入口，当前项高亮（active 跟随路由）。
+- 不包含员工侧元素：无 History、无 Agents / Skills 主导航、无多标签 Tab Bar。
+- 无管理能力的用户直接访问 `/admin/*` 时只显示权限提示与返回工作区入口。
+- Employee Workspace = 员工工作；Administration = 企业治理。两套信息架构不混在同一根 Sidebar 中。
 
 ## 6. Conversation Workspace（新建会话）
 
@@ -405,7 +431,7 @@ Skills 是普通员工左侧一级入口。
 
 ## 16. Administration 页面
 
-以下页面从“所有用户的主导航”移动到 Administration / Governance，保留原设计中仍然合理的部分。
+以下页面从“所有用户的主导航”移动到 Administration / Governance，保留原设计中仍然合理的部分。它们挂在独立的 Administration Shell 侧边栏下（见 §5.4）。
 
 ### Overview
 

@@ -1,87 +1,41 @@
 "use client";
 
-import { useMemo } from "react";
-import {
-  Bot,
-  FolderKanban,
-  LayoutGrid,
-  MessageSquarePlus,
-  MoreHorizontal,
-  ShieldCheck,
-  Sparkles,
-  SquareCheckBig,
-} from "lucide-react";
+/**
+ * Employee Workspace Sidebar（DESIGN.md §5.1）：
+ * 核心入口（Agents / Skills）+ 辅助入口（我的审批 / 管理员 / More）
+ * + History（全部 / 任务 / 会话 过滤 + 今天 / 昨天 / 更早 分组）。
+ * Administration 不在此展开 —— 「管理员」进入独立 Admin Shell（§5.4）。
+ */
+import { useMemo, useState } from "react";
+import { Bot, Building2, FolderKanban, LayoutGrid, MessageSquarePlus, MoreHorizontal, ShieldCheck, Sparkles, SquareCheckBig } from "lucide-react";
 import { useWorkspaceStore } from "@/lib/store/workspace-store";
-import { useWorkspaceNav } from "@/components/shell/nav";
+import { useWorkspaceNav, hasAdminCapability } from "@/components/shell/nav";
 import { Avatar } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
-import { dayGroupOf, type DayGroup } from "@/lib/format";
+import { buildHistoryGroups, HISTORY_FILTERS, type HistoryFilter } from "@/lib/history";
+import type { DayGroup } from "@/lib/format";
 
-interface HistoryItem {
-  key: string;
-  kind: "conversation" | "task";
-  id: string;
-  title: string;
-  updatedAt: string;
-  agentEmoji?: string;
-  agentName?: string;
-  sub: string;
-}
-
-const ADMIN_NAV = [
-  { label: "Models", path: "/admin/models" },
-  { label: "Tools / MCP Servers", path: "/admin/tools" },
-  { label: "Skill Categories", path: "/admin/skill-categories" },
-  { label: "Policies", path: "/admin/policies" },
-  { label: "Approvals", path: "/admin/approvals" },
-  { label: "Teams", path: "/admin/teams" },
-  { label: "Audit", path: "/admin/audit" },
-];
+const DAY_GROUP_LABEL: Record<DayGroup, string> = { today: "今天", yesterday: "昨天", earlier: "更早" };
 
 export function Sidebar() {
   // 渲染契约：整店订阅（mock 嵌套原地变更，窄 selector 不触发重渲染）
   const store = useWorkspaceStore();
-  const conversations = store.conversations;
-  const tasks = store.tasks;
-  const agents = store.agents;
-  const approvals = store.approvals;
-  const viewAsAdmin = store.viewAsAdmin;
-  const currentUser = store.currentUser;
-  const setViewAsAdmin = store.setViewAsAdmin;
-  const activeTabKey = store.activeTabKey;
+  const { conversations, tasks, agents, approvals, viewAsAdmin, currentUser, setViewAsAdmin, activeTabKey } = store;
   const nav = useWorkspaceNav();
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all");
+
+  const canAdmin = hasAdminCapability(currentUser, viewAsAdmin);
 
   const pendingApprovalCount = useMemo(
     () => Object.values(approvals).filter((a) => a.status === "PENDING").length,
     [approvals],
   );
 
-  // 历史记录统一展示 Conversation + Task，按时间分组（今天 / 昨天 / 更早）
-  const historyGroups = useMemo(() => {
-    const items: HistoryItem[] = [];
-    for (const conv of Object.values(conversations)) {
-      if (!conv.persisted) continue;
-      items.push({
-        key: `conv:${conv.id}`, kind: "conversation", id: conv.id,
-        title: conv.title, updatedAt: conv.updatedAt,
-        sub: "会话",
-      });
-    }
-    for (const task of Object.values(tasks)) {
-      if (!task.persisted || task.status === "ARCHIVED") continue;
-      const agent = agents[task.agentId];
-      items.push({
-        key: `task:${task.id}`, kind: "task", id: task.id,
-        title: task.title, updatedAt: task.updatedAt,
-        agentEmoji: agent?.avatarEmoji, agentName: agent?.name,
-        sub: agent ? `${agent.avatarEmoji} ${agent.name}` : "任务",
-      });
-    }
-    items.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
-    const groups: Record<DayGroup, HistoryItem[]> = { today: [], yesterday: [], earlier: [] };
-    for (const item of items) groups[dayGroupOf(item.updatedAt)].push(item);
-    return groups;
-  }, [conversations, tasks, agents]);
+  // 历史混排 + 视图过滤（View State，不动业务数据）
+  const historyGroups = useMemo(
+    () => buildHistoryGroups(conversations, tasks, agents, historyFilter),
+    [conversations, tasks, agents, historyFilter],
+  );
 
   const activeRef = activeTabKey; // highlight opened tabs
 
@@ -117,19 +71,52 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/*一级入口 */}
+      {/* 核心资源入口 */}
       <nav className="mt-4 flex flex-col gap-0.5 px-3">
         <SidebarLink icon={<LayoutGrid size={15} />} label="Agents" onClick={() => nav.go("/agents")} />
         <SidebarLink icon={<FolderKanban size={15} />} label="Skills" onClick={() => nav.go("/skills")} />
       </nav>
 
-      {/* History */}
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto px-3 pb-2">
+      {/* 辅助入口（Administration 只留一个「管理员」入口，不再展开子模块） */}
+      <nav className="mt-3 flex flex-col gap-0.5 px-3">
+        <SidebarLink
+          icon={<ShieldCheck size={15} />}
+          label="我的审批"
+          badge={pendingApprovalCount > 0 ? pendingApprovalCount : undefined}
+          onClick={() => nav.go("/approvals")}
+        />
+        {canAdmin ? (
+          <SidebarLink icon={<Building2 size={15} />} label="管理员" onClick={() => nav.admin()} />
+        ) : null}
+        <SidebarLink icon={<MoreHorizontal size={15} />} label="More / Settings" onClick={() => nav.go("/settings")} />
+      </nav>
+
+      {/* History：全部 / 任务 / 会话 过滤（默认全部） */}
+      <div className="mt-3 px-3">
+        <div className="flex items-center gap-0.5 rounded-lg bg-muted/50 p-0.5">
+          {HISTORY_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setHistoryFilter(f.id)}
+              className={cn(
+                "focus-ring h-6 flex-1 rounded-md text-[11px] font-medium transition-colors",
+                historyFilter === f.id
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-2">
         {(["today", "yesterday", "earlier"] as DayGroup[]).map((group) =>
           historyGroups[group].length > 0 ? (
             <div key={group} className="mb-2">
               <div className="px-2 pb-1 pt-1.5 text-[11px] font-medium text-muted-foreground/80">
-                {group === "today" ? "今天" : group === "yesterday" ? "昨天" : "更早"}
+                {DAY_GROUP_LABEL[group]}
               </div>
               <div className="flex flex-col gap-0.5">
                 {historyGroups[group].map((item) => (
@@ -159,35 +146,6 @@ export function Sidebar() {
           ) : null,
         )}
       </div>
-
-      {/* More */}
-      <div className="flex flex-col gap-0.5 border-t border-sidebar-border px-3 py-2">
-        <SidebarLink
-          icon={<ShieldCheck size={15} />}
-          label="My Approvals"
-          badge={pendingApprovalCount > 0 ? pendingApprovalCount : undefined}
-          onClick={() => nav.go("/approvals")}
-        />
-        <SidebarLink icon={<MoreHorizontal size={15} />} label="More / Settings" onClick={() => nav.go("/settings")} />
-      </div>
-
-      {/* Administration（仅管理员视角可见，不挤占员工日常导航） */}
-      {viewAsAdmin ? (
-        <div className="border-t border-sidebar-border px-3 py-2">
-          <div className="px-2 pb-1 pt-1 text-[11px] font-medium text-muted-foreground/80">
-            Administration
-          </div>
-          {ADMIN_NAV.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => nav.go(item.path)}
-              className="block w-full truncate rounded-lg px-2 py-1 text-left text-[12px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       {/* Footer: current user + admin view toggle */}
       <div className="flex items-center justify-between gap-2 border-t border-sidebar-border px-4 py-2.5">

@@ -68,6 +68,7 @@ Administration 骨架（可点击即可，不深做）：
 - [x] Store scoped tests：13 项通过（Task 固定 Agent、新指令新 Run、审批同 Run 恢复、Reject、Clone 快照、Publish 只读、createDraftFromPublished v2、Conversation P1 语义、Tab 模型）
 - [x] 浏览器走查：DESIGN.md §20 的 25 项 Employee Workspace 交互全部可点击演示（含同一 Agent 多 Task 多 Tab、Waiting Approval → 批准 → 同一 Run 完成的完整链路）
 - [x] Stage Gate 验证：`pnpm -r typecheck` / `pnpm -r lint` / `pnpm -r test` / `pnpm -r build` 全部通过
+- [x] Post-Gate UX correction（2026-09-26）：Employee Workspace 与 Administration 拆分为两个 Shell——Sidebar 辅助入口改为 我的审批 / 管理员 / More（My Approvals 中文化），治理模块不再在员工 Sidebar 展开；「管理员」入口（按 WORKSPACE_ADMIN 角色 + Admin 视角能力判定）进入独立 Admin Shell（7 个治理入口、active 跟随路由、返回工作区、无员工 History / Tab Bar，`/admin` → `/admin/models`）；History 增加 全部 / 任务 / 会话 视图过滤（纯函数 `lib/history.ts` + 5 项单测）。实现见 `components/shell/AdminShell.tsx`、`(workspace)` / `(admin)` route groups。Scoped 验证：web-console typecheck / lint / vitest 18 项 / 浏览器 smoke（过滤、Admin Shell 结构与守卫、Tab 保持）全部通过
 
 ### In Progress
 - [ ]（无）
@@ -76,4 +77,5 @@ Administration 骨架（可点击即可，不深做）：
 - [ ]（无）
 
 **Stage 01 Gate：通过（2026-09-26）。证据见 `docs/stages/01-stage-review.md`。**
+**Post-Gate UX correction：完成（2026-09-26）。**
 
